@@ -84,6 +84,15 @@ extern Allocator *temp;
 void *Alloc(s64 size, Allocator *allocator);
 void Free(void *ptr, Allocator *allocator);
 
+template<typename T>
+T *Alloc(Allocator *allocator)
+{
+    T *ptr = (T *)Alloc(sizeof(T), allocator);
+    *ptr = T{};
+
+    return ptr;
+}
+
 struct MemoryArenaPage
 {
     struct MemoryArenaPage *prev;
