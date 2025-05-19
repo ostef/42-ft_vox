@@ -14,10 +14,25 @@ struct GfxShader;
 struct GfxPipelineState;
 struct GfxRenderPass;
 
+enum GfxPixelFormat
+{
+    GfxPixelFormat_Invalid,
+    GfxPixelFormat_RGBAUnorm8,
+    GfxPixelFormat_RGBAFloat32,
+    GfxPixelFormat_DepthFloat32,
+};
+
 void GfxCreateContext(SDL_Window *window);
 void GfxDestroyContext();
+
 void GfxBeginFrame();
 void GfxSubmitFrame();
+
+int GfxGetBackbufferIndex();
+float GfxGetLastFrameGPUTime();
+
+GfxTexture *GfxGetSwapchainTexture();
+GfxPixelFormat GfxGetSwapchainPixelFormat();
 
 enum GfxCpuAccessFlags
 {
@@ -63,14 +78,6 @@ enum GfxTextureUsage
     GfxTextureUsage_RenderTarget = 0x1,
     GfxTextureUsage_DepthStencil = 0x2,
     GfxTextureUsage_ShaderRead = 0x4,
-};
-
-enum GfxPixelFormat
-{
-    GfxPixelFormat_Invalid,
-    GfxPixelFormat_RGBAUnorm8,
-    GfxPixelFormat_RGBAFloat32,
-    GfxPixelFormat_DepthFloat32,
 };
 
 struct GfxTextureDesc

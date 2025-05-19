@@ -313,6 +313,7 @@ void ArrayClear(Array<T> *arr)
 Result<String> ReadEntireFile(const char *filename);
 
 static const char *Log_Vulkan = "Vulkan";
+static const char *Log_OpenGL = "OpenGL";
 
 void LogMessage(const char *section, const char *str, ...);
 void LogWarning(const char *section, const char *str, ...);
