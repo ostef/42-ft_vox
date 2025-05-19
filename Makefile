@@ -1,30 +1,61 @@
-SOURCE_FILES=main.cpp core.cpp math.cpp
-HEADER_FILES=Core.hpp Math.hpp
+OPENGL_NAME=vox-gl
+VULKAN_NAME=vox-vk
+
+SRC_DIR=Source
+SRC_FILES=main.cpp core.cpp math.cpp
+OPENGL_SRC_FILES=OpenGL/opengl.cpp
+
 INCLUDE_DIRS=Source /usr/include/SDL2
-SOURCE_DIR=Source
-OBJ_DIR=Obj
-OBJ_FILES=$(SOURCE_FILES:.cpp=.o)
+OPENGL_INCLUDE_DIRS=Third-Party/glad/include
+VULKAN_INCLUDE_DIRS=$(HOME)/vulkan/1.4.313.0/x86_64/include
+
+OPENGL_OBJ_DIR=Obj/OpenGL
+VULKAN_OBJ_DIR=Obj/Vulkan
+
+OBJ_FILES=$(SRC_FILES:.cpp=.o)
+OPENGL_OBJ_FILES=$(OPENGL_SRC_FILES:.cpp=.o) glad.o
+VULKAN_OBJ_FILES=$(VULKAN_SRC_FILES:.cpp=.o)
+
+LIB_DIRS=
+VULKAN_LIB_DIRS=$(HOME)/vulkan/1.4.313.0/x86_64/lib
+
 LIBS=SDL2
+VULKAN_LIBS=vulkan
+
+OPENGL_DEFINES=VOX_BACKEND_OPENGL
+VULKAN_DEFINES=VOX_BACKEND_VULKAN
+
+CC=gcc
 CPP=g++
 CPP_FLAGS=-g -Wextra -Werror
 
-all: $(OBJ_DIR) vox
+all: $(OPENGL_NAME)
 
-$(OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
-	$(CPP) $(CPP_FLAGS) $(addprefix -I,$(INCLUDE_DIRS)) -c $< -o $@
+$(OPENGL_OBJ_DIR)/glad.o: Third-Party/glad/src/glad.c
+	$(CC) -g -IThird-Party/glad/include -c $< -o $@
 
-vox: $(addprefix $(OBJ_DIR)/,$(OBJ_FILES))
-	$(CPP) $(addprefix $(OBJ_DIR)/,$(OBJ_FILES)) $(addprefix -l,$(LIBS)) -o $@
+$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
+	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(OPENGL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(OPENGL_INCLUDE_DIRS)) -c $< -o $@
 
-$(OBJ_DIR):
-	mkdir $(OBJ_DIR)
+$(VULKAN_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
+	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(VULKAN_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(VULKAN_INCLUDE_DIRS)) -c $< -o $@
+
+$(OPENGL_NAME): $(addprefix $(OPENGL_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(OPENGL_OBJ_DIR)/,$(OPENGL_OBJ_FILES))
+	$(CPP) $(addprefix $(OPENGL_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(OPENGL_OBJ_DIR)/,$(OPENGL_OBJ_FILES)) $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) -o $@
+
+$(VULKAN_NAME): $(addprefix $(VULKAN_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(VULKAN_OBJ_DIR)/,$(VULKAN_OBJ_FILES))
+	$(CPP) $(addprefix $(VULKAN_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(VULKAN_OBJ_DIR)/,$(VULKAN_OBJ_FILES)) $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) -o $@
 
 clean:
-	rm -rf $(OBJ_DIR)
+	rm -rf $(OPENGL_OBJ_DIR)
+	rm -rf $(VULKAN_OBJ_DIR)
 
 fclean: clean
-	rm -f vox
+	rm -f $(OPENGL_NAME)
+	rm -f $(VULKAN_NAME)
 
-re: fclean all
+re: | fclean all
 
 .PHONY: all clean fclean re

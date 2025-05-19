@@ -7,10 +7,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#if defined(__linux__)
-#define VOX_PLATFORM_LINUX
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #define VOX_PLATFORM_WINDOWS
+#elif defined(__linux__)
+#define VOX_PLATFORM_LINUX
 #elif defined(__MACH__)
 #define VOX_PLATFORM_MACOS
 #else
@@ -25,13 +25,16 @@ typedef uint32_t u32;
 typedef  int32_t s32;
 typedef uint64_t u64;
 typedef  int64_t s64;
+#ifndef uint
+typedef unsigned int uint;
+#endif
 
 typedef float  f32;
 typedef double f64;
 
 #define null nullptr
 
-static char g_assert_failure_message_buffer[10000];
+static char g_assert_failure_message_buffer[10000]; // @Todo @ThreadSafety
 
 #if defined(VOX_PLATFORM_WINDOWS)
 #define DebugBreak() __debugbreak()
@@ -41,14 +44,14 @@ static char g_assert_failure_message_buffer[10000];
 #endif
 
 #define Panic(...) do { \
-        snprintf(g_assert_failure_message_buffer, 10000, "" __VA_ARGS__); \
-        HandlePanic(__FILE__, __LINE__, g_assert_failure_message_buffer);\
-    } while (0)
+    snprintf(g_assert_failure_message_buffer, 10000, "" __VA_ARGS__); \
+    HandlePanic(__FILE__, __LINE__, g_assert_failure_message_buffer);\
+} while (0)
 
 #define Assert(x, ...) do { if (!(x)) {\
-        snprintf(g_assert_failure_message_buffer, 10000, "" __VA_ARGS__); \
-        HandleAssertionFailure(__FILE__, __LINE__, #x, g_assert_failure_message_buffer); }\
-    } while (0)
+    snprintf(g_assert_failure_message_buffer, 10000, "" __VA_ARGS__); \
+    HandleAssertionFailure(__FILE__, __LINE__, #x, g_assert_failure_message_buffer); }\
+} while (0)
 
 static inline void HandlePanic(const char *file, int line, const char *message)
 {
@@ -58,7 +61,7 @@ static inline void HandlePanic(const char *file, int line, const char *message)
 
 static inline void HandleAssertionFailure(const char *file, int line, const char *expr, const char *message)
 {
-    printf("\x1b[1;35mAssertion failed!\x1b[0m At file %s:%d\n%s(%s)\n", file, line, message, expr);
+    printf("\x1b[1;35mAssertion failed!\x1b[0m At file %s:%d\n%s (%s)\n", file, line, message, expr);
     DebugBreak();
 }
 
@@ -89,6 +92,21 @@ T *Alloc(Allocator *allocator)
 {
     T *ptr = (T *)Alloc(sizeof(T), allocator);
     *ptr = T{};
+
+    return ptr;
+}
+
+template<typename T>
+T *Alloc(s64 count, Allocator *allocator, bool initialize = false)
+{
+    T *ptr = (T *)Alloc(sizeof(T) * count, allocator);
+    if (initialize)
+    {
+        for (s64 i = 0; i < count; i += 1)
+        {
+            ptr[i] = T{};
+        }
+    }
 
     return ptr;
 }
@@ -176,7 +194,34 @@ template<typename Tproc> Defer<Tproc> DeferProcedureCall(Tproc proc) { return De
 #define _defer3(x)    _defer2(x, __COUNTER__)
 #define defer(code)   auto _defer3(_defer_) = DeferProcedureCall([&]() { code; })
 
-#define StaticArraySize(arr)(sizeof(arr) / sizeof(*arr))
+#define StaticArraySize(arr)(sizeof(arr) / sizeof(*(arr)))
+
+template<typename T>
+struct Slice
+{
+    s64 count = 0;
+    T *data = null;
+
+    inline T &operator [](s64 index)
+    {
+        Assert(index >= 0 && index < count,
+            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            index, count
+        );
+
+        return data[index];
+    }
+
+    inline const T &operator [](s64 index) const
+    {
+        Assert(index >= 0 && index < count,
+            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            index, count
+        );
+
+        return data[index];
+    }
+};
 
 template<typename T>
 struct Array
@@ -188,7 +233,7 @@ struct Array
     inline T &operator [](s64 index)
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed(attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %ld, count is %ld)",
             index, count
         );
 
@@ -198,7 +243,7 @@ struct Array
     inline const T &operator [](s64 index) const
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed(attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %ld, count is %ld)",
             index, count
         );
 
@@ -267,7 +312,8 @@ void ArrayClear(Array<T> *arr)
 
 Result<String> ReadEntireFile(const char *filename);
 
-void LogMessage(const char *str, ...);
-void LogWarning(const char *str, ...);
-void LogError(const char *str, ...);
+static const char *Log_Vulkan = "Vulkan";
 
+void LogMessage(const char *section, const char *str, ...);
+void LogWarning(const char *section, const char *str, ...);
+void LogError(const char *section, const char *str, ...);

@@ -1,4 +1,6 @@
 vox
+vox-gl
+vox-vk
 *.o
 *.so
 *.a

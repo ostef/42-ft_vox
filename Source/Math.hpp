@@ -15,21 +15,32 @@
 #define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 #define InverseLerp(a, b, v) (((v) - (a)) / ((b) - (a)))
 
-void RandomSeed(int seed);
-int RandomGetInt();
-int RandomGetIntInRange(int low, int high);
-float RandomGetFloatInRange(float low, float high);
+struct RNG
+{
+    u32 state;
+};
+
+void RandomSeed(RNG *rng, u32 seed);
+u32 RandomGetNext(RNG *rng);
+
+struct Recti
+{
+    s32 x = 0;
+    s32 y = 0;
+    s32 w = 0;
+    s32 h = 0;
+};
 
 struct Vec2f
 {
     float x = 0;
     float y = 0;
 
-    explicit Vec2f(float x = 0, float y = 0)
-    {
-        this->x = x;
-        this->y = y;
-    }
+    // explicit Vec2f(float x = 0, float y = 0)
+    // {
+    //     this->x = x;
+    //     this->y = y;
+    // }
 
     Vec2f &operator +=(const Vec2f &b);
     Vec2f &operator -=(const Vec2f &b);
@@ -43,12 +54,12 @@ struct Vec3f
     float y = 0;
     float z = 0;
 
-    explicit Vec3f(float x = 0, float y = 0, float z = 0)
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-    }
+    // explicit Vec3f(float x = 0, float y = 0, float z = 0)
+    // {
+    //     this->x = x;
+    //     this->y = y;
+    //     this->z = z;
+    // }
 
     Vec3f &operator +=(const Vec3f &b);
     Vec3f &operator -=(const Vec3f &b);
@@ -63,13 +74,13 @@ struct Vec4f
     float z = 0;
     float w = 0;
 
-    explicit Vec4f(float x = 0, float y = 0, float z = 0, float w = 0)
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-        this->w = w;
-    }
+    // explicit Vec4f(float x = 0, float y = 0, float z = 0, float w = 0)
+    // {
+    //     this->x = x;
+    //     this->y = y;
+    //     this->z = z;
+    //     this->w = w;
+    // }
 
     Vec4f &operator +=(const Vec4f &b);
     Vec4f &operator -=(const Vec4f &b);
@@ -84,13 +95,13 @@ struct Quatf
     float z = 0;
     float w = 1;
 
-    explicit Quatf(float x = 0, float y = 0, float z = 0, float w = 1)
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-        this->w = w;
-    }
+    // explicit Quatf(float x = 0, float y = 0, float z = 0, float w = 1)
+    // {
+    //     this->x = x;
+    //     this->y = y;
+    //     this->z = z;
+    //     this->w = w;
+    // }
 
     Quatf &operator +=(const Quatf &b);
     Quatf &operator -=(const Quatf &b);
@@ -110,21 +121,21 @@ struct Mat3f
     float r2c1 = 0;
     float r2c2 = 1;
 
-    explicit Mat3f(
-        float r0c0 = 1, float r0c1 = 0, float r0c2 = 0,
-        float r1c0 = 0, float r1c1 = 1, float r1c2 = 0,
-        float r2c0 = 0, float r2c1 = 0, float r2c2 = 1
-    ) {
-        this->r0c0 = r0c0;
-        this->r0c1 = r0c1;
-        this->r0c2 = r0c2;
-        this->r1c0 = r1c0;
-        this->r1c1 = r1c1;
-        this->r1c2 = r1c2;
-        this->r2c0 = r2c0;
-        this->r2c1 = r2c1;
-        this->r2c2 = r2c2;
-    }
+    // explicit Mat3f(
+    //     float r0c0 = 1, float r0c1 = 0, float r0c2 = 0,
+    //     float r1c0 = 0, float r1c1 = 1, float r1c2 = 0,
+    //     float r2c0 = 0, float r2c1 = 0, float r2c2 = 1
+    // ) {
+    //     this->r0c0 = r0c0;
+    //     this->r0c1 = r0c1;
+    //     this->r0c2 = r0c2;
+    //     this->r1c0 = r1c0;
+    //     this->r1c1 = r1c1;
+    //     this->r1c2 = r1c2;
+    //     this->r2c0 = r2c0;
+    //     this->r2c1 = r2c1;
+    //     this->r2c2 = r2c2;
+    // }
 };
 
 struct Mat4f
@@ -146,29 +157,29 @@ struct Mat4f
     float r3c2 = 0;
     float r3c3 = 1;
 
-    explicit Mat4f(
-        float r0c0 = 1, float r0c1 = 0, float r0c2 = 0, float r0c3 = 0,
-        float r1c0 = 0, float r1c1 = 1, float r1c2 = 0, float r1c3 = 1,
-        float r2c0 = 0, float r2c1 = 0, float r2c2 = 1, float r2c3 = 0,
-        float r3c0 = 0, float r3c1 = 0, float r3c2 = 0, float r3c3 = 1
-    ) {
-        this->r0c0 = r0c0;
-        this->r0c1 = r0c1;
-        this->r0c2 = r0c2;
-        this->r0c3 = r0c3;
-        this->r1c0 = r1c0;
-        this->r1c1 = r1c1;
-        this->r1c2 = r1c2;
-        this->r1c3 = r1c3;
-        this->r2c0 = r2c0;
-        this->r2c1 = r2c1;
-        this->r2c2 = r2c2;
-        this->r2c3 = r2c3;
-        this->r3c0 = r3c0;
-        this->r3c1 = r3c1;
-        this->r3c2 = r3c2;
-        this->r3c3 = r3c3;
-    }
+    // explicit Mat4f(
+    //     float r0c0 = 1, float r0c1 = 0, float r0c2 = 0, float r0c3 = 0,
+    //     float r1c0 = 0, float r1c1 = 1, float r1c2 = 0, float r1c3 = 1,
+    //     float r2c0 = 0, float r2c1 = 0, float r2c2 = 1, float r2c3 = 0,
+    //     float r3c0 = 0, float r3c1 = 0, float r3c2 = 0, float r3c3 = 1
+    // ) {
+    //     this->r0c0 = r0c0;
+    //     this->r0c1 = r0c1;
+    //     this->r0c2 = r0c2;
+    //     this->r0c3 = r0c3;
+    //     this->r1c0 = r1c0;
+    //     this->r1c1 = r1c1;
+    //     this->r1c2 = r1c2;
+    //     this->r1c3 = r1c3;
+    //     this->r2c0 = r2c0;
+    //     this->r2c1 = r2c1;
+    //     this->r2c2 = r2c2;
+    //     this->r2c3 = r2c3;
+    //     this->r3c0 = r3c0;
+    //     this->r3c1 = r3c1;
+    //     this->r3c2 = r3c2;
+    //     this->r3c3 = r3c3;
+    // }
 };
 
 Vec2f Add(const Vec2f &a, const Vec2f &b);

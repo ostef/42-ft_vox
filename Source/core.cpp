@@ -84,8 +84,11 @@ void *MemoryArenaAllocator(AllocatorOp op, s64 size, void *ptr, void *data)
     return null;
 }
 
-void LogMessage(const char *str, ...)
+void LogMessage(const char *section, const char *str, ...)
 {
+    if (section)
+        printf("[%s] ", section);
+
     va_list args;
     va_start(args, str);
 
@@ -96,9 +99,14 @@ void LogMessage(const char *str, ...)
     printf("\n");
 }
 
-void LogWarning(const char *str, ...)
+void LogWarning(const char *section, const char *str, ...)
 {
-    printf("\x1b[1;33mWarning: ");
+    printf("\x1b[1;33m");
+
+    if (section)
+        printf("[%s] ", section);
+
+    printf("Warning: ");
 
     va_list args;
     va_start(args, str);
@@ -110,9 +118,14 @@ void LogWarning(const char *str, ...)
     printf("\x1b[0m\n");
 }
 
-void LogError(const char *str, ...)
+void LogError(const char *section, const char *str, ...)
 {
-    printf("\x1b[1;31mError: ");
+    printf("\x1b[1;31m");
+
+    if (section)
+        printf("[%s] ", section);
+
+    printf("Error: ");
 
     va_list args;
     va_start(args, str);

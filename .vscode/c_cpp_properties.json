@@ -4,9 +4,11 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/Source/",
-                "/usr/include/SDL2"
+                "${workspaceFolder}/Third-Party/glad/include",
+                "/usr/include/SDL2",
+                "~/vulkan/1.4.313.0/x86_64/include"
             ],
-            "defines": [],
+            "defines": ["VOX_BACKEND_OPENGL"],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++14",
