@@ -6,8 +6,10 @@
 #include <SDL.h>
 
 #define Gfx_Max_Frames_In_Flight 2
+#define Gfx_Break_On_Error
 
 struct GfxContext;
+struct GfxCommandBuffer;
 struct GfxTexture;
 struct GfxBuffer;
 struct GfxShader;
@@ -33,6 +35,11 @@ float GfxGetLastFrameGPUTime();
 
 GfxTexture *GfxGetSwapchainTexture();
 GfxPixelFormat GfxGetSwapchainPixelFormat();
+
+GfxCommandBuffer GfxCreateCommandBuffer(const char *name);
+void GfxExecuteCommandBuffer(GfxCommandBuffer *cmd_buffer);
+void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, const char *name);
+void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer);
 
 enum GfxCpuAccessFlags
 {
@@ -245,13 +252,36 @@ struct GfxRenderPassDesc
 {
     GfxTexture *color_attachments[Gfx_Max_Color_Attachments] = {};
     GfxTexture *depth_attachment = null;
+    GfxTexture *stencil_attachment = null;
 
     bool should_clear_color[Gfx_Max_Color_Attachments] = {};
     bool should_clear_depth = false;
+    bool should_clear_stencil = false;
 
     Vec4f clear_color[Gfx_Max_Color_Attachments] = {};
     float clear_depth = 0;
+    u32 clear_stencil = 0;
 };
+
+static inline void GfxClearColor(GfxRenderPassDesc *pass_desc, int index, Vec4f color)
+{
+    Assert(index >= 0 && index < Gfx_Max_Color_Attachments);
+
+    pass_desc->should_clear_color[index] = true;
+    pass_desc->clear_color[index] = color;
+}
+
+static inline void GfxClearDepth(GfxRenderPassDesc *pass_desc, float depth)
+{
+    pass_desc->should_clear_depth = true;
+    pass_desc->clear_depth = depth;
+}
+
+static inline void GfxClearStencil(GfxRenderPassDesc *pass_desc, u32 stencil)
+{
+    pass_desc->should_clear_stencil = true;
+    pass_desc->clear_stencil = stencil;
+}
 
 struct GfxViewport
 {
@@ -269,12 +299,14 @@ enum GfxIndexType
     GfxIndexType_Uint32,
 };
 
-GfxRenderPass GfxBeginRenderPass(String name, GfxRenderPassDesc desc);
+GfxRenderPassDesc GetDesc(GfxRenderPass *pass);
+
+GfxRenderPass GfxBeginRenderPass(const char *name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc);
 void GfxEndRenderPass(GfxRenderPass *pass);
 
-void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
-void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
-void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
+// void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
+// void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
+// void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
 
 // void GfxSetVertexBuffer
 // void GfxSetBuffer

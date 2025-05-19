@@ -81,14 +81,14 @@ struct Allocator
     AllocatorFunc func;
 };
 
-extern Allocator *heap;
-extern Allocator *temp;
+extern Allocator heap;
+extern Allocator temp;
 
-void *Alloc(s64 size, Allocator *allocator);
-void Free(void *ptr, Allocator *allocator);
+void *Alloc(s64 size, Allocator allocator);
+void Free(void *ptr, Allocator allocator);
 
 template<typename T>
-T *Alloc(Allocator *allocator)
+T *Alloc(Allocator allocator)
 {
     T *ptr = (T *)Alloc(sizeof(T), allocator);
     *ptr = T{};
@@ -97,7 +97,7 @@ T *Alloc(Allocator *allocator)
 }
 
 template<typename T>
-T *Alloc(s64 count, Allocator *allocator, bool initialize = false)
+T *Alloc(s64 count, Allocator allocator, bool initialize = false)
 {
     T *ptr = (T *)Alloc(sizeof(T) * count, allocator);
     if (initialize)
@@ -169,6 +169,15 @@ struct Result
         return res;
     }
 };
+
+Result<String> ReadEntireFile(const char *filename);
+
+static const char *Log_Vulkan = "Vulkan";
+static const char *Log_OpenGL = "OpenGL";
+
+void LogMessage(const char *section, const char *str, ...);
+void LogWarning(const char *section, const char *str, ...);
+void LogError(const char *section, const char *str, ...);
 
 // Defer
 
@@ -310,11 +319,167 @@ void ArrayClear(Array<T> *arr)
     arr->count = 0;
 }
 
-Result<String> ReadEntireFile(const char *filename);
+#define Hash_Map_Never_Occupied 0
+#define Hash_Map_Removed 1
+#define Hash_Map_First_Occupied 2
+#define Hash_Map_Min_Capacity 32
+#define Hash_Map_Load_Limit 70
 
-static const char *Log_Vulkan = "Vulkan";
-static const char *Log_OpenGL = "OpenGL";
+template<typename TKey, typename TValue>
+struct HashMap
+{
+    struct Entry
+    {
+        u64 hash = 0;
+        TKey key;
+        TValue value;
+    };
 
-void LogMessage(const char *section, const char *str, ...);
-void LogWarning(const char *section, const char *str, ...);
-void LogError(const char *section, const char *str, ...);
+    typedef bool (*CompareFunc)(TKey a, TKey b);
+    typedef u64 (*HashFunc)(TKey key);
+
+    CompareFunc Compare = null;
+    HashFunc Hash = null;
+
+    Slice<Entry> entries = {};
+    Allocator allocator = {};
+    s64 occupied = 0;
+    s64 count = 0;
+};
+
+template<typename TKey, typename TValue>
+void HashMapGrow(HashMap<TKey, TValue> *map)
+{
+    typedef typename HashMap<TKey, TValue>::Entry Entry;
+
+    if (!map->allocator.func)
+        map->allocator = heap;
+
+    Slice<Entry> old_entries = map->entries;
+    defer(Free(old_entries.data, map->allocator));
+
+    s64 new_capacity = (map->entries.count * 2 > Hash_Map_Min_Capacity ? map->entries.count * 2 : Hash_Map_Min_Capacity);
+    map->entries = {};
+    map->entries.data = Alloc<Entry>(new_capacity, map->allocator);
+    map->entries.count = new_capacity;
+    map->count = 0;
+    map->occupied = 0;
+
+    for (s64 i = 0; i < new_capacity; i += 1)
+        map->entries[i].hash = Hash_Map_Never_Occupied;
+
+    for (s64 i = 0; i < old_entries.count; i += 1)
+    {
+        Entry entry = old_entries[i];
+        if (entry.hash >= Hash_Map_First_Occupied)
+            HashMapInsert(map, entry.key, entry.value);
+    }
+}
+
+struct HashMapProbeResult
+{
+    u64 hash = 0;
+    s64 index = -1;
+    bool is_present = false;
+};
+
+template<typename TKey, typename TValue>
+HashMapProbeResult HashMapProbe(HashMap<TKey, TValue> *map, TKey key)
+{
+    Assert(map->entries.count > 0);
+    Assert(map->Compare != null);
+    Assert(map->Hash != null);
+
+    u64 mask = (u64)(map->entries.count - 1);
+    u64 hash = map->Hash(key);
+    if (hash < Hash_Map_First_Occupied)
+        hash += Hash_Map_First_Occupied;
+
+    u64 index = hash & mask;
+    u64 increment = 1 + (hash >> 27);
+    while (map->entries[index].hash != Hash_Map_Never_Occupied)
+    {
+        auto entry = &map->entries[index];
+
+        if (entry->hash == hash && map->Compare(entry->key, key))
+            return {.hash=hash, .index=(s64)index, .is_present=true};
+
+        index += increment;
+        index &= mask;
+        increment += 1;
+    }
+
+    return {.hash=hash, .index=(s64)index, .is_present=false};
+}
+
+template<typename TKey, typename TValue>
+TValue *HashMapFindOrAdd(HashMap<TKey, TValue> *map, TKey key, bool *was_present = null)
+{
+    if ((map->occupied + 1) * 100 >= map->entries.count * Hash_Map_Load_Limit)
+        HashMapGrow(map);
+
+    auto probe = HashMapProbe(map, key);
+    auto entry = &map->entries[probe.index];
+    if (was_present)
+        *was_present = probe.is_present;
+
+    if (probe.is_present)
+        return &entry->value;
+
+    entry->hash = probe.hash;
+    entry->key = key;
+    map->occupied += 1;
+    map->count += 1;
+
+    return &entry->value;
+}
+
+template<typename TKey, typename TValue>
+void HashMapInsert(HashMap<TKey, TValue> *map, TKey key, TValue value)
+{
+    auto ptr = HashMapFindOrAdd(map, key);
+    *ptr = value;
+}
+
+template<typename TKey, typename TValue>
+TValue *HashMapFind(HashMap<TKey, TValue> *map, TKey key)
+{
+    if (map->count <= 0)
+        return null;
+
+    auto probe = HashMapProbe(map, key);
+    if (probe.is_present)
+        return &map->entries[probe.index].value;
+
+    return null;
+}
+
+template<typename TKey, typename TValue>
+bool HashMapRemove(HashMap<TKey, TValue> *map, TKey key, TValue *removed_value = null)
+{
+    if (map->count <= 0)
+    {
+        if (removed_value)
+            *removed_value = {};
+
+        return false;
+    }
+
+    auto probe = HashMapProbe(map, key);
+    if (!probe.is_present)
+    {
+        if (removed_value)
+            *removed_value = {};
+
+        return false;
+    }
+
+    auto entry = &map->entries[probe.index];
+    entry->hash = Hash_Map_Removed;
+    map->count -= 1;
+
+    if (removed_value)
+        *removed_value = entry->value;
+
+    return true;
+}

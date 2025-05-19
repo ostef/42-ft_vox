@@ -12,24 +12,24 @@ void *HeapAllocator(AllocatorOp op, s64 size, void *ptr, void *data)
     return null;
 }
 
-void *Alloc(s64 size, Allocator *allocator)
+void *Alloc(s64 size, Allocator allocator)
 {
-    Assert(allocator->func != null, "Allocator is null");
+    Assert(allocator.func != null, "Allocator is null");
 
     if (size <= 0)
         return null;
 
-    return allocator->func(AllocatorOp_Alloc, size, null, allocator->data);
+    return allocator.func(AllocatorOp_Alloc, size, null, allocator.data);
 }
 
-void Free(void *ptr, Allocator *allocator)
+void Free(void *ptr, Allocator allocator)
 {
-    Assert(allocator->func != null, "Allocator is null");
+    Assert(allocator.func != null, "Allocator is null");
 
     if (ptr == null)
         return;
 
-    allocator->func(AllocatorOp_Free, 0, ptr, allocator->data);
+    allocator.func(AllocatorOp_Free, 0, ptr, allocator.data);
 }
 
 static void AddPage(MemoryArena *arena, s64 min_size)

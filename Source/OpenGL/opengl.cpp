@@ -38,7 +38,7 @@ static void GLDebugMessageCallback(
         LogError(Log_OpenGL, "%serror%s: (%s) %s", source_str, type_str, id, message);
 
         #ifdef Gfx_Break_On_Error
-            Panic("Hit an OpenGL error", location=location);
+            Panic("Hit an OpenGL error");
         #endif
 
         break;
@@ -208,4 +208,23 @@ GfxPixelFormat GfxGetSwapchainPixelFormat()
     Panic("Invalid parameters for pixel format (RGBA bits: %d %d %d %d, type: %x, encoding: %x)", r_size, g_size, b_size, a_size, type, encoding);
 
     return GfxPixelFormat_Invalid;
+}
+
+GfxCommandBuffer GfxCreateCommandBuffer(const char *name)
+{
+    return {};
+}
+
+void GfxExecuteCommandBuffer(GfxCommandBuffer *cmd_buffer)
+{
+}
+
+void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, const char *name)
+{
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+}
+
+void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer)
+{
+    glPopDebugGroup();
 }

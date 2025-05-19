@@ -5,11 +5,8 @@
 
 static MemoryArena g_frame_arena;
 
-static Allocator g_heap = Allocator{null, HeapAllocator};
-static Allocator g_temp = Allocator{&g_frame_arena, MemoryArenaAllocator};
-
-Allocator *heap = &g_heap;
-Allocator *temp = &g_temp;
+Allocator heap = Allocator{null, HeapAllocator};
+Allocator temp = Allocator{&g_frame_arena, MemoryArenaAllocator};
 
 SDL_Window *g_window;
 
@@ -50,5 +47,18 @@ int main(int argc, char **args)
 void RenderGraphics()
 {
     GfxBeginFrame();
+
+    GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Frame");
+
+    GfxRenderPassDesc pass_desc{};
+    pass_desc.color_attachments[0] = GfxGetSwapchainTexture();
+    GfxClearColor(&pass_desc, 0, {1.0, 0.1, 0.1, 1.0});
+    auto pass = GfxBeginRenderPass("Test", &cmd_buffer, pass_desc);
+    {
+    }
+    GfxEndRenderPass(&pass);
+
+    GfxExecuteCommandBuffer(&cmd_buffer);
+
     GfxSubmitFrame();
 }

@@ -14,6 +14,13 @@ struct GfxBuffer
     GfxBufferDesc desc = {};
 };
 
+struct OpenGLFramebufferKey
+{
+    GLuint color_textures[Gfx_Max_Color_Attachments];
+    GLuint depth_texture;
+    GLuint stencil_texture;
+};
+
 struct GfxContext
 {
     SDL_Window *window = null;
@@ -23,6 +30,8 @@ struct GfxContext
     // get the swapchain texture in OpenGL. It must only be used to set as a render target
     GfxTexture dummy_swapchain_texture = {};
 
+    HashMap<OpenGLFramebufferKey, GLuint> framebuffer_cache = {};
+
     int backbuffer_index = 0;
 
     float last_frame_gpu_time = 0;
@@ -30,6 +39,10 @@ struct GfxContext
 };
 
 extern GfxContext g_gfx_context;
+
+struct GfxCommandBuffer
+{
+};
 
 struct GfxShader
 {
@@ -41,4 +54,9 @@ struct GfxPipelineState
 
 struct GfxRenderPass
 {
+    const char *name = null;
+    GfxRenderPassDesc desc = {};
+    GfxCommandBuffer *cmd_buffer = null;
+
+    GLuint fbo = 0;
 };
