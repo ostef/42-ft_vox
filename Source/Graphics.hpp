@@ -229,7 +229,7 @@ struct GfxBlendStateDesc
     GfxBlendFactor src_alpha = GfxBlendFactor_SrcAlpha;
     GfxBlendFactor dst_alpha = GfxBlendFactor_OneMinusSrcAlpha;
     GfxBlendOperation RGB_operation = GfxBlendOperation_Add;
-    GfxBlendOperation alpa_operation = GfxBlendOperation_Add;
+    GfxBlendOperation alpha_operation = GfxBlendOperation_Add;
 };
 
 #define Gfx_Max_Color_Attachments 8
@@ -369,7 +369,7 @@ GfxRenderPassDesc GetDesc(GfxRenderPass *pass);
 GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc);
 void GfxEndRenderPass(GfxRenderPass *pass);
 
-// void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
+void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
 // void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
 // void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
 

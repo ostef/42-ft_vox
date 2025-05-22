@@ -1,6 +1,182 @@
 #include "Graphics.hpp"
 
-static GLuint GLGetFramebuffer(GfxRenderPassDesc desc)
+static GLuint GLGetFramebuffer(GfxRenderPassDesc desc);
+static GLenum GLFillMode(GfxFillMode mode);
+static GLenum GLFace(GfxPolygonFace face);
+static GLenum GLWindingOrder(GfxPolygonWindingOrder order);
+static GLenum GLBlendFactor(GfxBlendFactor factor);
+static GLenum GLBlendEquation(GfxBlendOperation op);
+static GLenum GLComparisonFunc(GfxCompareFunc func);
+
+GfxRenderPassDesc GetDesc(GfxRenderPass *pass)
+{
+    return pass->desc;
+}
+
+GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc)
+{
+    GfxBeginDebugGroup(cmd_buffer, name);
+
+    GfxRenderPass pass {};
+    pass.name = name;
+    pass.desc = desc;
+    pass.cmd_buffer = cmd_buffer;
+
+    pass.fbo = GLGetFramebuffer(desc);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.fbo);
+
+    glDisable(GL_SCISSOR_TEST); // Prevent scissor from affecting clearing
+
+    int color_buffer_index = 0;
+    for (int i = 0; i < Gfx_Max_Color_Attachments; i += 1)
+    {
+        if (desc.color_attachments[i])
+        {
+            glColorMaski(color_buffer_index, true, true, true, true);
+            if (desc.should_clear_color[i])
+                glClearBufferfv(GL_COLOR, color_buffer_index, (float *)&desc.clear_color[i]);
+
+            color_buffer_index += 1;
+        }
+    }
+
+    if (desc.depth_attachment && desc.should_clear_depth)
+    {
+        glDepthMask(true);
+        glClearBufferfv(GL_DEPTH, 0, &desc.clear_depth);
+    }
+
+    if (desc.stencil_attachment && desc.should_clear_stencil)
+    {
+        glStencilMask(0xffffffff);
+        glStencilFunc(GL_ALWAYS, 0, 0xffffffff);
+        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+        glClearBufferiv(GL_STENCIL, 0, (int *)&desc.clear_stencil);
+    }
+
+    return pass;
+}
+
+void GfxEndRenderPass(GfxRenderPass *pass)
+{
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    GfxEndDebugGroup(pass->cmd_buffer);
+}
+
+void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state)
+{
+    pass->current_pipeline_state = state;
+
+    glBindProgramPipeline(state->pso);
+
+    // Relocate fragment shader bindings so they do not conflict with the vertex shader's
+    if (state->desc.fragment_shader)
+    {
+        GLuint fragment_program = state->desc.fragment_shader->handle;
+        foreach (i, state->fragment_stage_binding_relocations)
+        {
+            auto binding = state->fragment_stage_bindings[i];
+            auto reloc = state->fragment_stage_binding_relocations[i];
+            switch (binding.type)
+            {
+            case GfxPipelineBindingType_UniformBuffer:
+                if (reloc.block_index_or_uniform_location >= 0) {
+                    glUniformBlockBinding(fragment_program, reloc.block_index_or_uniform_location, reloc.relocated_binding_index);
+                }
+                break;
+
+            case GfxPipelineBindingType_StorageBuffer:
+                if (reloc.block_index_or_uniform_location >= 0) {
+                    glShaderStorageBlockBinding(fragment_program, reloc.block_index_or_uniform_location, reloc.relocated_binding_index);
+                }
+                break;
+
+            case GfxPipelineBindingType_Texture:
+            case GfxPipelineBindingType_SamplerState:
+                foreach (unit_index, reloc.associated_texture_units)
+                {
+                    auto unit = reloc.associated_texture_units[unit_index];
+                    if (reloc.block_index_or_uniform_location >= 0) {
+                        glProgramUniform1i(fragment_program, reloc.block_index_or_uniform_location, reloc.relocated_binding_index);
+                    }
+                }
+
+                break;
+
+            case GfxPipelineBindingType_CombinedSampler:
+                if (reloc.block_index_or_uniform_location >= 0) {
+                    glProgramUniform1i(fragment_program, reloc.block_index_or_uniform_location, reloc.relocated_binding_index);
+                }
+                break;
+            }
+        }
+    }
+
+    glDisable(GL_SCISSOR_TEST); // Enabled when calling set_scissor_rect
+
+    // Vertex layout (i.e. vertex array)
+    glBindVertexArray(state->vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pass->current_index_buffer ? pass->current_index_buffer->handle : 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Rasterizer state
+    auto rasterizer = state->desc.rasterizer_state;
+    glPolygonMode(GL_FRONT_AND_BACK, GLFillMode(rasterizer.fill_mode));
+
+    if (rasterizer.cull_face == GfxPolygonFace_None)
+    {
+        glDisable(GL_CULL_FACE);
+    }
+    else
+    {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GLFace(rasterizer.cull_face));
+    }
+
+    glFrontFace(GLWindingOrder(rasterizer.winding_order));
+
+    // Blend state
+    for (int i = 0; i < Gfx_Max_Color_Attachments; i += 1)
+    {
+        auto blend = state->desc.blend_states[i];
+        if (!blend.enabled)
+        {
+            glDisablei(GL_BLEND, i);
+            continue;
+        }
+
+        glEnablei(GL_BLEND, i);
+        glBlendFuncSeparatei(
+            i,
+            GLBlendFactor(blend.src_RGB), GLBlendFactor(blend.dst_RGB),
+            GLBlendFactor(blend.src_alpha), GLBlendFactor(blend.dst_alpha)
+        );
+        glBlendEquationSeparatei(
+            i,
+            GLBlendEquation(blend.RGB_operation),
+            GLBlendEquation(blend.alpha_operation)
+        );
+    }
+
+    // Depth state
+    auto depth = state->desc.depth_state;
+    if (depth.enabled)
+    {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GLComparisonFunc(depth.compare_func));
+    }
+    else
+    {
+        glDisable(GL_DEPTH_TEST);
+    }
+
+    glDepthMask(depth.write_enabled);
+
+    // Stencil state (@Todo)
+}
+
+GLuint GLGetFramebuffer(GfxRenderPassDesc desc)
 {
     OpenGLFramebufferKey key{};
     bool has_swapchain_texture = false;
@@ -79,59 +255,86 @@ static GLuint GLGetFramebuffer(GfxRenderPassDesc desc)
     return *ptr;
 }
 
-GfxRenderPassDesc GetDesc(GfxRenderPass *pass)
+GLenum GLFillMode(GfxFillMode mode)
 {
-    return pass->desc;
+    switch (mode)
+    {
+    case GfxFillMode_Fill:  return GL_LINE;
+    case GfxFillMode_Lines: return GL_FILL;
+    }
+    Panic("Invalid value for mode");
+    return 0;
 }
 
-GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc)
+GLenum GLFace(GfxPolygonFace face)
 {
-    GfxBeginDebugGroup(cmd_buffer, name);
-
-    GfxRenderPass pass {};
-    pass.name = name;
-    pass.desc = desc;
-    pass.cmd_buffer = cmd_buffer;
-
-    pass.fbo = GLGetFramebuffer(desc);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.fbo);
-
-    glDisable(GL_SCISSOR_TEST); // Prevent scissor from affecting clearing
-
-    int color_buffer_index = 0;
-    for (int i = 0; i < Gfx_Max_Color_Attachments; i += 1)
+    switch (face)
     {
-        if (desc.color_attachments[i])
-        {
-            glColorMaski(color_buffer_index, true, true, true, true);
-            if (desc.should_clear_color[i])
-                glClearBufferfv(GL_COLOR, color_buffer_index, (float *)&desc.clear_color[i]);
-
-            color_buffer_index += 1;
-        }
+    case GfxPolygonFace_None:  return 0;
+    case GfxPolygonFace_Front: return GL_FRONT;
+    case GfxPolygonFace_Back:  return GL_BACK;
     }
-
-    if (desc.depth_attachment && desc.should_clear_depth)
-    {
-        glDepthMask(true);
-        glClearBufferfv(GL_DEPTH, 0, &desc.clear_depth);
-    }
-
-    if (desc.stencil_attachment && desc.should_clear_stencil)
-    {
-        glStencilMask(0xffffffff);
-        glStencilFunc(GL_ALWAYS, 0, 0xffffffff);
-        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-        glClearBufferiv(GL_STENCIL, 0, (int *)&desc.clear_stencil);
-    }
-
-    return pass;
+    Panic("Invalid value for face");
+    return 0;
 }
 
-void GfxEndRenderPass(GfxRenderPass *pass)
+GLenum GLWindingOrder(GfxPolygonWindingOrder order)
 {
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-    GfxEndDebugGroup(pass->cmd_buffer);
+    switch (order)
+    {
+    case GfxPolygonWindingOrder_CCW: return GL_CCW;
+    case GfxPolygonWindingOrder_CW:  return GL_CW;
+    }
+    Panic("Invalid value for order");
+    return 0;
 }
 
+GLenum GLBlendFactor(GfxBlendFactor factor)
+{
+    switch (factor)
+    {
+    case GfxBlendFactor_One:              return GL_ONE;
+    case GfxBlendFactor_Zero:             return GL_ZERO;
+    case GfxBlendFactor_SrcColor:         return GL_SRC_COLOR;
+    case GfxBlendFactor_OneMinusSrcColor: return GL_ONE_MINUS_SRC_COLOR;
+    case GfxBlendFactor_SrcAlpha:         return GL_SRC_ALPHA;
+    case GfxBlendFactor_OneMinusSrcAlpha: return GL_ONE_MINUS_SRC_ALPHA;
+    case GfxBlendFactor_DstColor:         return GL_DST_COLOR;
+    case GfxBlendFactor_OneMinusDstColor: return GL_ONE_MINUS_DST_COLOR;
+    case GfxBlendFactor_DstAlpha:         return GL_DST_ALPHA;
+    case GfxBlendFactor_OneMinusDstAlpha: return GL_ONE_MINUS_DST_ALPHA;
+    }
+    Panic("Invalid value for factor");
+    return 0;
+}
+
+GLenum GLBlendEquation(GfxBlendOperation op)
+{
+    switch (op)
+    {
+    case GfxBlendOperation_Add:             return GL_FUNC_ADD;
+    case GfxBlendOperation_Subtract:        return GL_FUNC_SUBTRACT;
+    case GfxBlendOperation_ReverseSubtract: return GL_FUNC_REVERSE_SUBTRACT;
+    case GfxBlendOperation_Min:             return GL_MIN;
+    case GfxBlendOperation_Max:             return GL_MAX;
+    }
+    Panic("Invalid value for op");
+    return 0;
+}
+
+GLenum GLComparisonFunc(GfxCompareFunc func)
+{
+    switch (func)
+    {
+    case GfxCompareFunc_Never:        return GL_NEVER;
+    case GfxCompareFunc_Less:         return GL_LESS;
+    case GfxCompareFunc_LessEqual:    return GL_LEQUAL;
+    case GfxCompareFunc_Greater:      return GL_GREATER;
+    case GfxCompareFunc_GreaterEqual: return GL_GEQUAL;
+    case GfxCompareFunc_Equal:        return GL_EQUAL;
+    case GfxCompareFunc_NotEqual:     return GL_NOTEQUAL;
+    case GfxCompareFunc_Always:       return GL_ALWAYS;
+    }
+    Panic("Invalid value for func");
+    return 0;
+}

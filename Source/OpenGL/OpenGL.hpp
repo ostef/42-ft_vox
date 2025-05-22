@@ -79,6 +79,8 @@ struct GfxRenderPass
     GfxCommandBuffer *cmd_buffer = null;
 
     GLuint fbo = 0;
+    GfxPipelineState *current_pipeline_state = null;
+    GfxBuffer *current_index_buffer = null;
 };
 
 static const GLenum GL_Sampler_Types[] = {
