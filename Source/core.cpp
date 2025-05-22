@@ -5,7 +5,6 @@
 #include <unistd.h>
 #endif
 
-
 void *HeapAllocator(AllocatorOp op, s64 size, void *ptr, void *data)
 {
     switch (op)
