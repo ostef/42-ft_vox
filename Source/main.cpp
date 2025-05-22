@@ -45,7 +45,7 @@ int main(int argc, char **args)
     {
         for (int x = 0; x < 100; x += 1)
         {
-            float value = PerlinNoise(x / 10000.0, y / 10000.0);
+            float value = PerlinNoise((x / 100.0) * 12.3458, (y / 100.0) * 12.3458);
             pixels[y * 100 + x] = {value, value, value, 1};
         }
     }
