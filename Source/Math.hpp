@@ -23,6 +23,11 @@ struct RNG
 void RandomSeed(RNG *rng, u32 seed);
 u32 RandomGetNext(RNG *rng);
 
+#define Perlin_Fractal_Max_Octaves 10
+#define Perlin_Fractal_Min_Amplitude 0.00001
+
+float PerlinNoise(float x, float y);
+
 struct Recti
 {
     s32 x = 0;
@@ -65,6 +70,13 @@ struct Vec3f
     Vec3f &operator -=(const Vec3f &b);
     Vec3f &operator *=(float b);
     Vec3f &operator /=(float b);
+};
+
+struct Vec3u
+{
+    u32 x = 0;
+    u32 y = 0;
+    u32 z = 0;
 };
 
 struct Vec4f
