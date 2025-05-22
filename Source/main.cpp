@@ -31,6 +31,27 @@ int main(int argc, char **args)
 
     LoadAllShaders();
 
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2D;
+    desc.pixel_format = GfxPixelFormat_RGBAFloat32;
+    desc.width = 100;
+    desc.height = 100;
+    desc.cpu_access = GfxCpuAccess_Write;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    auto noise_texture = GfxCreateTexture("Noise", desc);
+
+    Vec4f pixels[100 * 100];
+    for (int y = 0; y < 100; y += 1)
+    {
+        for (int x = 0; x < 100; x += 1)
+        {
+            float value = PerlinNoise(x / 10000.0, y / 10000.0);
+            pixels[y * 100 + x] = {value, value, value, 1};
+        }
+    }
+
+    GfxReplaceTextureRegion(&noise_texture, {0,0,0}, {100,100,1}, 0, 0, pixels);
+
     bool quit = false;
     while(!quit)
     {
