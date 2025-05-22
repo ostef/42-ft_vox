@@ -205,7 +205,7 @@ String SPrintf(const char *fmt, ...)
     char *buffer = Alloc<char>(length + 1, heap);
 
     va_start(args, fmt);
-    length = vsnprintf(buffer, length, fmt, args);
+    length = vsnprintf(buffer, length + 1, fmt, args);
     va_end(args);
 
     return String{length, buffer};
@@ -225,7 +225,7 @@ String TPrintf(const char *fmt, ...)
     char *buffer = Alloc<char>(length + 1, temp);
 
     va_start(args, fmt);
-    length = vsnprintf(buffer, length, fmt, args);
+    length = vsnprintf(buffer, length + 1, fmt, args);
     va_end(args);
 
     return String{length, buffer};
