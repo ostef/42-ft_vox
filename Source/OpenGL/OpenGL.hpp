@@ -4,16 +4,22 @@
 
 #define Gfx_Backend GfxBackend_OpenGL
 
+struct GfxBuffer
+{
+    GLuint handle = 0;
+    GfxBufferDesc desc = {};
+};
+
 struct GfxTexture
 {
     GLuint handle = 0;
     GfxTextureDesc desc = {};
 };
 
-struct GfxBuffer
+struct GfxSamplerState
 {
     GLuint handle = 0;
-    GfxBufferDesc desc = {};
+    GfxSamplerStateDesc desc = {};
 };
 
 struct OpenGLFramebufferKey

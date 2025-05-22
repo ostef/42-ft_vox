@@ -176,6 +176,132 @@ void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state)
     // Stencil state (@Todo)
 }
 
+void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport)
+{
+    glViewport(viewport.top_left_x, viewport.top_left_y, viewport.width, viewport.height);
+    glDepthRange(viewport.min_depth, viewport.max_depth);
+}
+
+void GfxSetScissorRect(GfxRenderPass *pass, Recti rect)
+{
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(rect.x, rect.y, rect.w, rect.h);
+}
+
+void GfxSetBuffer(GfxRenderPass *pass, GfxPipelineBinding binding, GfxBuffer *buffer, s64 offset, s64 size)
+{
+    Assert(offset >= 0 && size >= 0, "Invalid buffer offset or size");
+
+    if (binding.index < 0)
+        return;
+
+    Assert(binding.type == GfxPipelineBindingType_UniformBuffer || binding.type == GfxPipelineBindingType_StorageBuffer, "GfxSetBuffer: binding is not a buffer");
+
+    GLuint handle = buffer && size > 0 ? buffer->handle : 0;
+    if (binding.type == GfxPipelineBindingType_UniformBuffer)
+        glBindBufferRange(GL_UNIFORM_BUFFER, binding.index, handle, offset, size);
+    else
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, binding.index, handle, offset, size);
+}
+
+void GfxSetTexture(GfxRenderPass *pass, GfxPipelineBinding binding, GfxTexture *texture)
+{
+    if (binding.index < 0 && binding.associated_texture_units.count <= 0)
+        return;
+
+    Assert(binding.type == GfxPipelineBindingType_Texture || binding.type == GfxPipelineBindingType_CombinedSampler, "GfxSetTexture: binding is not a texture or a combined sampler");
+
+    GLuint handle = texture ? texture->handle : 0;
+    if (binding.associated_texture_units.count > 0)
+    {
+        foreach (i, binding.associated_texture_units)
+            glBindTextureUnit(binding.associated_texture_units[i], handle);
+    }
+    else
+    {
+        glBindTextureUnit(binding.index, handle);
+    }
+}
+
+void GfxSetSamplerState(GfxRenderPass *pass, GfxPipelineBinding binding, GfxSamplerState *sampler)
+{
+    if (binding.index < 0 && binding.associated_texture_units.count <= 0)
+        return;
+
+    Assert(binding.type == GfxPipelineBindingType_SamplerState || binding.type == GfxPipelineBindingType_CombinedSampler, "GfxSetSamplerState: binding is not a sampler state or a combined sampler");
+
+    GLuint handle = sampler ? sampler->handle : 0;
+    if (binding.associated_texture_units.count > 0)
+    {
+        foreach (i, binding.associated_texture_units)
+            glBindSampler(binding.associated_texture_units[i], handle);
+    }
+    else
+    {
+        glBindSampler(binding.index, handle);
+    }
+}
+
+void GfxDrawPrimitives(GfxRenderPass *pass, u32 vertex_count, u32 instance_count, u32 base_vertex, u32 base_instance)
+{
+    GLenum mode = GL_TRIANGLES;
+    switch (pass->current_pipeline_state->desc.rasterizer_state.primitive_type)
+    {
+    case GfxPrimitiveType_Point:    mode = GL_POINTS;    break;
+    case GfxPrimitiveType_Line:     mode = GL_LINES;     break;
+    case GfxPrimitiveType_Triangle: mode = GL_TRIANGLES; break;
+    }
+
+    glDrawArraysInstancedBaseInstance(
+        mode,
+        base_vertex,
+        vertex_count,
+        instance_count,
+        base_instance
+    );
+}
+
+void GfxDrawIndexedPrimitives(GfxRenderPass *pass, GfxBuffer *index_buffer, u32 index_count, GfxIndexType index_type, u32 instance_count, u32 base_vertex, u32 base_index, u32 base_instance)
+{
+    if (index_buffer != pass->current_index_buffer)
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer ? index_buffer->handle : 0);
+        pass->current_index_buffer = index_buffer;
+    }
+
+    GLenum mode = GL_TRIANGLES;
+    switch (pass->current_pipeline_state->desc.rasterizer_state.primitive_type)
+    {
+    case GfxPrimitiveType_Point:    mode = GL_POINTS;    break;
+    case GfxPrimitiveType_Line:     mode = GL_LINES;     break;
+    case GfxPrimitiveType_Triangle: mode = GL_TRIANGLES; break;
+    }
+
+    GLenum type = 0;
+    int index_size = 0;
+    switch (index_type)
+    {
+    case GfxIndexType_Uint32:
+        type = GL_UNSIGNED_INT;
+        index_size = 4;
+        break;
+    case GfxIndexType_Uint16:
+        type = GL_UNSIGNED_SHORT;
+        index_size = 2;
+        break;
+    }
+
+    glDrawElementsInstancedBaseVertexBaseInstance(
+        mode,
+        index_count,
+        type,
+        (void *)(ptrdiff_t)(base_index * index_size),
+        instance_count,
+        base_vertex,
+        base_instance
+    );
+}
+
 GLuint GLGetFramebuffer(GfxRenderPassDesc desc)
 {
     OpenGLFramebufferKey key{};

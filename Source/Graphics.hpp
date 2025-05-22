@@ -13,6 +13,7 @@
 struct GfxContext;
 struct GfxCommandBuffer;
 struct GfxTexture;
+struct GfxSamplerState;
 struct GfxBuffer;
 struct GfxShader;
 struct GfxPipelineState;
@@ -31,6 +32,19 @@ enum GfxPixelFormat
     GfxPixelFormat_RGBAUnorm8,
     GfxPixelFormat_RGBAFloat32,
     GfxPixelFormat_DepthFloat32,
+};
+
+enum GfxCompareFunc
+{
+    GfxCompareFunc_None,
+    GfxCompareFunc_Never,
+    GfxCompareFunc_Less,
+    GfxCompareFunc_LessEqual,
+    GfxCompareFunc_Greater,
+    GfxCompareFunc_GreaterEqual,
+    GfxCompareFunc_Equal,
+    GfxCompareFunc_NotEqual,
+    GfxCompareFunc_Always,
 };
 
 void GfxCreateContext(SDL_Window *window);
@@ -106,6 +120,51 @@ GfxTextureDesc GetDesc(GfxTexture *texture);
 GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc);
 void GfxDestroyTexture(GfxTexture *texture);
 
+enum GfxSamplerFilter
+{
+    GfxSamplerFilter_None,
+    GfxSamplerFilter_Nearest,
+    GfxSamplerFilter_Linear,
+};
+
+enum GfxSamplerAddressMode
+{
+    GfxSamplerAddressMode_ClampToEdge,
+    GfxSamplerAddressMode_ClampToZero,
+    GfxSamplerAddressMode_ClampToBorder,
+    GfxSamplerAddressMode_Repeat,
+    GfxSamplerAddressMode_MirrorClampToEdge,
+    GfxSamplerAddressMode_MirrorRepeat,
+};
+
+enum GfxSamplerBorderColor
+{
+    GfxSamplerBorderColor_Transparent,
+    GfxSamplerBorderColor_OpaqueBlack,
+    GfxSamplerBorderColor_OpaqueWhite,
+};
+
+struct GfxSamplerStateDesc
+{
+    GfxSamplerFilter min_filter = GfxSamplerFilter_Nearest;
+    GfxSamplerFilter mag_filter = GfxSamplerFilter_Nearest;
+    GfxSamplerFilter mip_filter = GfxSamplerFilter_None;
+    GfxSamplerAddressMode u_address_mode = GfxSamplerAddressMode_ClampToEdge;
+    GfxSamplerAddressMode v_address_mode = GfxSamplerAddressMode_ClampToEdge;
+    GfxSamplerAddressMode w_address_mode = GfxSamplerAddressMode_ClampToEdge;
+    GfxSamplerBorderColor border_color = GfxSamplerBorderColor_Transparent;
+    float lod_min_clamp = 0;
+    float lod_max_clamp = INFINITY;
+    bool use_average_lod = false;
+    GfxCompareFunc compare_func = GfxCompareFunc_None;
+};
+
+bool IsNull(GfxSamplerState *sampler);
+GfxSamplerStateDesc GetDesc(GfxSamplerState *sampler);
+
+GfxSamplerState GfxCreateSamplerState(String name, GfxSamplerStateDesc desc);
+void GfxDestroySamplerState(GfxSamplerState *sampler);
+
 enum GfxPipelineStage
 {
     GfxPipelineStage_Invalid,
@@ -152,19 +211,6 @@ struct GfxRasterizerStateDesc
     GfxPolygonFace cull_face = GfxPolygonFace_Back;
     GfxPolygonWindingOrder winding_order = GfxPolygonWindingOrder_CCW;
     GfxFillMode fill_mode = GfxFillMode_Fill;
-};
-
-enum GfxCompareFunc
-{
-    GfxCompareFunc_Invalid,
-    GfxCompareFunc_Never,
-    GfxCompareFunc_Less,
-    GfxCompareFunc_LessEqual,
-    GfxCompareFunc_Greater,
-    GfxCompareFunc_GreaterEqual,
-    GfxCompareFunc_Equal,
-    GfxCompareFunc_NotEqual,
-    GfxCompareFunc_Always,
 };
 
 struct GfxDepthStateDesc
@@ -370,15 +416,17 @@ GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxR
 void GfxEndRenderPass(GfxRenderPass *pass);
 
 void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
-// void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
-// void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
+void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
+void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
 
 // void GfxSetVertexBuffer
-// void GfxSetBuffer
-// void GfxSetTexture
-// void GfxSetSamplerState
-// void GfxDrawPrimitives
-// void GfxDrawIndexedPrimitives
+
+void GfxSetBuffer(GfxRenderPass *pass, GfxPipelineBinding binding, GfxBuffer *buffer, s64 offset, s64 size);
+void GfxSetTexture(GfxRenderPass *pass, GfxPipelineBinding binding, GfxTexture *texture);
+void GfxSetSamplerState(GfxRenderPass *pass, GfxPipelineBinding binding, GfxSamplerState *sampler);
+
+void GfxDrawPrimitives(GfxRenderPass *pass, u32 vertex_count, u32 instance_count, u32 base_vertex = 0, u32 base_instance = 0);
+void GfxDrawIndexedPrimitives(GfxRenderPass *pass, GfxBuffer *index_buffer, u32 index_count, GfxIndexType index_type, u32 instance_count, u32 base_vertex = 0, u32 base_index = 0, u32 base_instance = 0);
 
 #if defined(VOX_BACKEND_VULKAN)
 #include "Vulkan/Vulkan.hpp"
