@@ -127,3 +127,18 @@ static const GLenum GL_Sampler_Types[] = {
     GL_UNSIGNED_INT_SAMPLER_BUFFER,
     GL_UNSIGNED_INT_SAMPLER_2D_RECT,
 };
+
+// Conversion functions
+void GLFormatSizeAndType(GfxVertexFormat format, int *size, GLenum *type);
+
+GLenum GLFillMode(GfxFillMode mode);
+GLenum GLFace(GfxPolygonFace face);
+GLenum GLWindingOrder(GfxPolygonWindingOrder order);
+GLenum GLBlendFactor(GfxBlendFactor factor);
+GLenum GLBlendEquation(GfxBlendOperation op);
+GLenum GLComparisonFunc(GfxCompareFunc func);
+
+GLenum GLTextureType(GfxTextureType type);
+GLenum GLPixelFormat(GfxPixelFormat format);
+GLenum GLTextureFilter(GfxSamplerFilter filter, GfxSamplerFilter mip_filter);
+GLenum GLTextureWrap(GfxSamplerAddressMode mode);

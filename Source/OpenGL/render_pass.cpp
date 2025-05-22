@@ -1,12 +1,6 @@
 #include "Graphics.hpp"
 
 static GLuint GLGetFramebuffer(GfxRenderPassDesc desc);
-static GLenum GLFillMode(GfxFillMode mode);
-static GLenum GLFace(GfxPolygonFace face);
-static GLenum GLWindingOrder(GfxPolygonWindingOrder order);
-static GLenum GLBlendFactor(GfxBlendFactor factor);
-static GLenum GLBlendEquation(GfxBlendOperation op);
-static GLenum GLComparisonFunc(GfxCompareFunc func);
 
 GfxRenderPassDesc GetDesc(GfxRenderPass *pass)
 {
@@ -186,6 +180,14 @@ void GfxSetScissorRect(GfxRenderPass *pass, Recti rect)
 {
     glEnable(GL_SCISSOR_TEST);
     glScissor(rect.x, rect.y, rect.w, rect.h);
+}
+
+void GfxSetVertexBuffer(GfxRenderPass *Pass, int index, GfxBuffer *buffer, s64 offset, s64 size, s64 stride)
+{
+    Assert(offset >= 0 && size >= 0 && stride >= 0, "Invalid buffer offset or size or stride");
+    Assert(index >= 0, "Invalid buffer index");
+
+    glBindVertexBuffer(index, buffer ? buffer->handle : 0, offset, stride);
 }
 
 void GfxSetBuffer(GfxRenderPass *pass, GfxPipelineBinding binding, GfxBuffer *buffer, s64 offset, s64 size)

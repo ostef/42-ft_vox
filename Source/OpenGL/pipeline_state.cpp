@@ -1,6 +1,5 @@
 #include "Graphics.hpp"
 
-static void GLFormatSizeAndType(GfxVertexFormat format, int *size, GLenum *type);
 static void SetupPipelineBindings(GfxPipelineState *state);
 
 bool IsNull(GfxPipelineState *state)

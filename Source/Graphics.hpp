@@ -89,8 +89,13 @@ GfxBufferDesc GetDesc(GfxBuffer *buffer);
 GfxBuffer GfxCreateBuffer(String name, GfxBufferDesc desc);
 void GfxDestroyBuffer(GfxBuffer *buffer);
 
+typedef uint32_t GfxMapAccessFlags;
+#define GfxMapAccess_Read  0x1
+#define GfxMapAccess_Write 0x2
+
 void *GfxMapBuffer(GfxBuffer *buffer, s64 offset, s64 size);
 void GfxUnmapBuffer(GfxBuffer *buffer);
+void GfxFlushMappedBuffer(GfxBuffer *buffer, s64 offset, s64 size);
 
 enum GfxTextureType
 {
@@ -419,7 +424,7 @@ void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);
 void GfxSetViewport(GfxRenderPass *pass, GfxViewport viewport);
 void GfxSetScissorRect(GfxRenderPass *pass, Recti rect);
 
-// void GfxSetVertexBuffer
+void GfxSetVertexBuffer(GfxRenderPass *Pass, int index, GfxBuffer *buffer, s64 offset, s64 size, s64 stride);
 
 void GfxSetBuffer(GfxRenderPass *pass, GfxPipelineBinding binding, GfxBuffer *buffer, s64 offset, s64 size);
 void GfxSetTexture(GfxRenderPass *pass, GfxPipelineBinding binding, GfxTexture *texture);
