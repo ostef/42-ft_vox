@@ -182,6 +182,19 @@ bool Equals(const String &a, const String &b)
     return strncmp(a.data, b.data, a.length) == 0;
 }
 
+String CloneString(String str, Allocator allocator)
+{
+    String result{};
+    result.data = Alloc<char>(str.length, allocator);
+    if (result.data)
+    {
+        result.length = str.length;
+        memcpy(result.data, str.data, str.length);
+    }
+
+    return result;
+}
+
 char *CloneToCString(String str, Allocator allocator)
 {
     char *result = Alloc<char>(str.length + 1, allocator);

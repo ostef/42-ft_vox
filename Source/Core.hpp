@@ -156,6 +156,7 @@ struct String
     }
 };
 
+String CloneString(String str, Allocator allocator);
 char *CloneToCString(String str, Allocator allocator);
 String SPrintf(const char *fmt, ...);
 String TPrintf(const char *fmt, ...);
@@ -258,6 +259,17 @@ struct Slice
         return data[index];
     }
 };
+
+template<typename T>
+Slice<T> AllocSlice(s64 count, Allocator allocator, bool initialize = false)
+{
+    Slice<T> result{};
+    result.data = Alloc<T>(count, allocator, initialize);
+    if (result.data != null)
+        result.count = count;
+
+    return result;
+}
 
 template<typename T>
 struct Array

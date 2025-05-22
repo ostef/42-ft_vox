@@ -84,7 +84,7 @@ GfxRenderPassDesc GetDesc(GfxRenderPass *pass)
     return pass->desc;
 }
 
-GfxRenderPass GfxBeginRenderPass(const char *name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc)
+GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc)
 {
     GfxBeginDebugGroup(cmd_buffer, name);
 

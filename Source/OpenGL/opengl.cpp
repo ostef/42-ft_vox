@@ -210,7 +210,7 @@ GfxPixelFormat GfxGetSwapchainPixelFormat()
     return GfxPixelFormat_Invalid;
 }
 
-GfxCommandBuffer GfxCreateCommandBuffer(const char *name)
+GfxCommandBuffer GfxCreateCommandBuffer(String name)
 {
     return {};
 }
@@ -219,9 +219,9 @@ void GfxExecuteCommandBuffer(GfxCommandBuffer *cmd_buffer)
 {
 }
 
-void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, const char *name)
+void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, String name)
 {
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, name.length, name.data);
 }
 
 void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer)

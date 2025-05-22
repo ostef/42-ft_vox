@@ -45,9 +45,9 @@ float GfxGetLastFrameGPUTime();
 GfxTexture *GfxGetSwapchainTexture();
 GfxPixelFormat GfxGetSwapchainPixelFormat();
 
-GfxCommandBuffer GfxCreateCommandBuffer(const char *name);
+GfxCommandBuffer GfxCreateCommandBuffer(String name);
 void GfxExecuteCommandBuffer(GfxCommandBuffer *cmd_buffer);
-void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, const char *name);
+void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, String name);
 void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer);
 
 typedef uint32_t GfxCpuAccessFlags;
@@ -189,6 +189,8 @@ struct GfxVertexInputDesc
     GfxVertexFormat format = GfxVertexFormat_Invalid;
     s64 offset = 0;
     s64 stride = 0;
+    bool normalized = false;
+    u32 buffer_index = 0;
 };
 
 enum GfxBlendFactor
@@ -263,10 +265,30 @@ struct GfxPipelineBinding
     Slice<int> associated_texture_units = {};
 };
 
+static inline Slice<GfxPipelineBinding> GfxCloneBindings(Slice<GfxPipelineBinding> bindings)
+{
+    Slice<GfxPipelineBinding> result = AllocSlice<GfxPipelineBinding>(bindings.count, heap);
+    foreach (i, bindings)
+    {
+        auto b = bindings[i];
+        auto res = &result[i];
+        *res = b;
+        res->name = CloneString(b.name, heap);
+        res->associated_texture_units = AllocSlice<int>(b.associated_texture_units.count, heap);
+        memcpy(res->associated_texture_units.data, b.associated_texture_units.data, sizeof(int) * b.associated_texture_units.count);
+    }
+
+    return result;
+}
+
 bool IsNull(GfxPipelineState *state);
+GfxPipelineStateDesc GetDesc(GfxPipelineState *state);
 
 GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc);
 void GfxDestroyPipelineState(GfxPipelineState *state);
+
+Slice<GfxPipelineBinding> GfxGetVertexStageBindings(GfxPipelineState *state);
+Slice<GfxPipelineBinding> GfxGetFragmentStageBindings(GfxPipelineState *state);
 
 bool IsNull(GfxShader *shader);
 
@@ -344,7 +366,7 @@ enum GfxIndexType
 
 GfxRenderPassDesc GetDesc(GfxRenderPass *pass);
 
-GfxRenderPass GfxBeginRenderPass(const char *name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc);
+GfxRenderPass GfxBeginRenderPass(String name, GfxCommandBuffer *cmd_buffer, GfxRenderPassDesc desc);
 void GfxEndRenderPass(GfxRenderPass *pass);
 
 // void GfxSetPipelineState(GfxRenderPass *pass, GfxPipelineState *state);

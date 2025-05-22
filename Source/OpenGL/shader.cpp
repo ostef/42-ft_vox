@@ -40,55 +40,19 @@ static Slice<GfxPipelineBinding> GetGLShaderBindings(String name, GLuint handle,
         }
     }
 
-    static const GLenum Sampler_Types[] = {
-        GL_SAMPLER_1D,
-        GL_SAMPLER_2D,
-        GL_SAMPLER_3D,
-        GL_SAMPLER_CUBE,
-        GL_SAMPLER_1D_SHADOW,
-        GL_SAMPLER_2D_SHADOW,
-        GL_SAMPLER_1D_ARRAY,
-        GL_SAMPLER_2D_ARRAY,
-        GL_SAMPLER_1D_ARRAY_SHADOW,
-        GL_SAMPLER_2D_ARRAY_SHADOW,
-        GL_SAMPLER_2D_MULTISAMPLE,
-        GL_SAMPLER_2D_MULTISAMPLE_ARRAY,
-        GL_SAMPLER_CUBE_SHADOW,
-        GL_SAMPLER_BUFFER,
-        GL_SAMPLER_2D_RECT,
-        GL_SAMPLER_2D_RECT_SHADOW,
-        GL_INT_SAMPLER_1D,
-        GL_INT_SAMPLER_2D,
-        GL_INT_SAMPLER_3D,
-        GL_INT_SAMPLER_CUBE,
-        GL_INT_SAMPLER_1D_ARRAY,
-        GL_INT_SAMPLER_2D_ARRAY,
-        GL_INT_SAMPLER_2D_MULTISAMPLE,
-        GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
-        GL_INT_SAMPLER_BUFFER,
-        GL_INT_SAMPLER_2D_RECT,
-        GL_UNSIGNED_INT_SAMPLER_1D,
-        GL_UNSIGNED_INT_SAMPLER_2D,
-        GL_UNSIGNED_INT_SAMPLER_3D,
-        GL_UNSIGNED_INT_SAMPLER_CUBE,
-        GL_UNSIGNED_INT_SAMPLER_1D_ARRAY,
-        GL_UNSIGNED_INT_SAMPLER_2D_ARRAY,
-        GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE,
-        GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
-        GL_UNSIGNED_INT_SAMPLER_BUFFER,
-        GL_UNSIGNED_INT_SAMPLER_2D_RECT,
-    };
-
     for (int i = 0; i < num_uniforms; i += 1)
     {
         GLenum props[] = {GL_LOCATION, GL_NAME_LENGTH, GL_TYPE};
         int values[StaticArraySize(props)];
         glGetProgramResourceiv(handle, GL_UNIFORM, i, StaticArraySize(props), props, sizeof(values), null, values);
 
+        if (values[0] < 0)
+            continue;
+
         bool is_sampler = false;
-        for (int j = 0; j < (int)StaticArraySize(Sampler_Types); j += 1)
+        for (int j = 0; j < (int)StaticArraySize(GL_Sampler_Types); j += 1)
         {
-            if (values[2] == (int)Sampler_Types[j])
+            if (values[2] == (int)GL_Sampler_Types[j])
             {
                 is_sampler = true;
                 break;
@@ -165,7 +129,7 @@ void GfxDestroyShader(GfxShader *shader)
 {
     glDeleteProgram(shader->handle);
 
-    foreach(i, shader->bindings)
+    foreach (i, shader->bindings)
     {
         Free(shader->bindings[i].name.data, heap);
         Free(shader->bindings[i].associated_texture_units.data, heap);

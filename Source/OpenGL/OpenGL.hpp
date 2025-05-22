@@ -53,15 +53,69 @@ struct GfxShader
     Slice<GfxPipelineBinding> bindings = {};
 };
 
+struct OpenGLBindingRelocation
+{
+    int block_index_or_uniform_location = -1;
+    int original_binding_index = -1;
+    int relocated_binding_index = -1;
+    Slice<OpenGLBindingRelocation> associated_texture_units = {};
+};
+
 struct GfxPipelineState
 {
+    GfxPipelineStateDesc desc = {};
+    GLuint pso = 0;
+    GLuint vao = 0;
+
+    Slice<GfxPipelineBinding> vertex_stage_bindings = {};
+    Slice<GfxPipelineBinding> fragment_stage_bindings = {};
+    Slice<OpenGLBindingRelocation> fragment_stage_binding_relocations = {};
 };
 
 struct GfxRenderPass
 {
-    const char *name = null;
+    String name = "";
     GfxRenderPassDesc desc = {};
     GfxCommandBuffer *cmd_buffer = null;
 
     GLuint fbo = 0;
+};
+
+static const GLenum GL_Sampler_Types[] = {
+    GL_SAMPLER_1D,
+    GL_SAMPLER_2D,
+    GL_SAMPLER_3D,
+    GL_SAMPLER_CUBE,
+    GL_SAMPLER_1D_SHADOW,
+    GL_SAMPLER_2D_SHADOW,
+    GL_SAMPLER_1D_ARRAY,
+    GL_SAMPLER_2D_ARRAY,
+    GL_SAMPLER_1D_ARRAY_SHADOW,
+    GL_SAMPLER_2D_ARRAY_SHADOW,
+    GL_SAMPLER_2D_MULTISAMPLE,
+    GL_SAMPLER_2D_MULTISAMPLE_ARRAY,
+    GL_SAMPLER_CUBE_SHADOW,
+    GL_SAMPLER_BUFFER,
+    GL_SAMPLER_2D_RECT,
+    GL_SAMPLER_2D_RECT_SHADOW,
+    GL_INT_SAMPLER_1D,
+    GL_INT_SAMPLER_2D,
+    GL_INT_SAMPLER_3D,
+    GL_INT_SAMPLER_CUBE,
+    GL_INT_SAMPLER_1D_ARRAY,
+    GL_INT_SAMPLER_2D_ARRAY,
+    GL_INT_SAMPLER_2D_MULTISAMPLE,
+    GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
+    GL_INT_SAMPLER_BUFFER,
+    GL_INT_SAMPLER_2D_RECT,
+    GL_UNSIGNED_INT_SAMPLER_1D,
+    GL_UNSIGNED_INT_SAMPLER_2D,
+    GL_UNSIGNED_INT_SAMPLER_3D,
+    GL_UNSIGNED_INT_SAMPLER_CUBE,
+    GL_UNSIGNED_INT_SAMPLER_1D_ARRAY,
+    GL_UNSIGNED_INT_SAMPLER_2D_ARRAY,
+    GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE,
+    GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
+    GL_UNSIGNED_INT_SAMPLER_BUFFER,
+    GL_UNSIGNED_INT_SAMPLER_2D_RECT,
 };
