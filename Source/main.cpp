@@ -1,5 +1,6 @@
 #include "Core.hpp"
 #include "Graphics.hpp"
+#include "Renderer.hpp"
 
 #include <SDL.h>
 
@@ -28,6 +29,8 @@ int main(int argc, char **args)
     GfxCreateContext(g_window);
     defer(GfxDestroyContext());
 
+    LoadAllShaders();
+
     bool quit = false;
     while(!quit)
     {
@@ -51,8 +54,9 @@ void RenderGraphics()
     GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Frame");
 
     GfxRenderPassDesc pass_desc{};
-    pass_desc.color_attachments[0] = GfxGetSwapchainTexture();
+    GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
     GfxClearColor(&pass_desc, 0, {1.0, 0.1, 0.1, 1.0});
+
     auto pass = GfxBeginRenderPass("Test", &cmd_buffer, pass_desc);
     {
     }

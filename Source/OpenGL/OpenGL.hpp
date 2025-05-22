@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+#define Gfx_Backend GfxBackend_OpenGL
+
 struct GfxTexture
 {
     GLuint handle = 0;
@@ -16,9 +18,9 @@ struct GfxBuffer
 
 struct OpenGLFramebufferKey
 {
-    GLuint color_textures[Gfx_Max_Color_Attachments];
-    GLuint depth_texture;
-    GLuint stencil_texture;
+    GLuint color_textures[Gfx_Max_Color_Attachments] = {};
+    GLuint depth_texture = 0;
+    GLuint stencil_texture = 0;
 };
 
 struct GfxContext
@@ -46,6 +48,9 @@ struct GfxCommandBuffer
 
 struct GfxShader
 {
+    GLuint handle = 0;
+    GfxPipelineStage stage = GfxPipelineStage_Invalid;
+    Slice<GfxPipelineBinding> bindings = {};
 };
 
 struct GfxPipelineState

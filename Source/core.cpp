@@ -1,6 +1,11 @@
 #include "Core.hpp"
 #include "Math.hpp"
 
+#ifdef VOX_PLATFORM_LINUX
+#include <unistd.h>
+#endif
+
+
 void *HeapAllocator(AllocatorOp op, s64 size, void *ptr, void *data)
 {
     switch (op)
@@ -137,9 +142,17 @@ void LogError(const char *section, const char *str, ...)
     printf("\x1b[0m\n");
 }
 
-Result<String> ReadEntireFile(const char *filename)
+bool FileExists(String filename)
 {
-    FILE *file = fopen(filename, "rb");
+    char *c_filename = CloneToCString(filename, temp);
+
+    return access(c_filename, F_OK) != -1;
+}
+
+Result<String> ReadEntireFile(String filename)
+{
+    char *c_filename = CloneToCString(filename, temp);
+    FILE *file = fopen(c_filename, "rb");
     if (!file)
         return Result<String>::Bad(false);
 
@@ -159,4 +172,61 @@ Result<String> ReadEntireFile(const char *filename)
     String str = String{number_of_bytes_read, data};
 
     return Result<String>::Good(str, true);
+}
+
+bool Equals(const String &a, const String &b)
+{
+    if (a.length != b.length)
+        return false;
+
+    return strncmp(a.data, b.data, a.length) == 0;
+}
+
+char *CloneToCString(String str, Allocator allocator)
+{
+    char *result = Alloc<char>(str.length + 1, allocator);
+    memcpy(result, str.data, str.length);
+    result[str.length] = 0;
+
+    return result;
+}
+
+String SPrintf(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    int length = vsnprintf(null, 0, fmt, args);
+    va_end(args);
+
+    if (length < 0)
+        return {};
+
+    char *buffer = Alloc<char>(length + 1, heap);
+
+    va_start(args, fmt);
+    length = vsnprintf(buffer, length, fmt, args);
+    va_end(args);
+
+    return String{length, buffer};
+}
+
+String TPrintf(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    int length = vsnprintf(null, 0, fmt, args);
+    va_end(args);
+
+    if (length < 0)
+        return {};
+
+    char *buffer = Alloc<char>(length + 1, temp);
+
+    va_start(args, fmt);
+    length = vsnprintf(buffer, length, fmt, args);
+    va_end(args);
+
+    return String{length, buffer};
 }

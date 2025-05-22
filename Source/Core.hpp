@@ -135,12 +135,34 @@ struct String
     s64 length = 0;
     char *data = null;
 
-    String(s64 length = 0, char *data = null)
+    String(const char *str = "")
+    {
+        if (str == "")
+        {
+            this->data = null;
+            this->length = 0;
+        }
+        else
+        {
+            this->length = strlen(str);
+            this->data = (char *)str;
+        }
+    }
+
+    explicit String(s64 length, char *data)
     {
         this->length = length;
         this->data = data;
     }
 };
+
+char *CloneToCString(String str, Allocator allocator);
+String SPrintf(const char *fmt, ...);
+String TPrintf(const char *fmt, ...);
+
+bool Equals(const String &a, const String &b);
+
+inline bool operator ==(const String &a, const String &b) { return Equals(a, b); }
 
 template<typename T, typename Status = bool>
 struct Result
@@ -170,10 +192,13 @@ struct Result
     }
 };
 
-Result<String> ReadEntireFile(const char *filename);
+bool FileExists(String filename);
+Result<String> ReadEntireFile(String filename);
 
-static const char *Log_Vulkan = "Vulkan";
-static const char *Log_OpenGL = "OpenGL";
+static const char *Log_Graphics = "Graphics";
+static const char *Log_Vulkan   = "Graphics/Vulkan";
+static const char *Log_OpenGL   = "Graphics/OpenGL";
+static const char *Log_Shaders  = "Graphics/Shaders";
 
 void LogMessage(const char *section, const char *str, ...);
 void LogWarning(const char *section, const char *str, ...);
@@ -204,6 +229,8 @@ template<typename Tproc> Defer<Tproc> DeferProcedureCall(Tproc proc) { return De
 #define defer(code)   auto _defer3(_defer_) = DeferProcedureCall([&]() { code; })
 
 #define StaticArraySize(arr)(sizeof(arr) / sizeof(*(arr)))
+
+#define foreach(it_index, arr) for (s64 it_index = 0; it_index < arr.count; it_index += 1)
 
 template<typename T>
 struct Slice

@@ -1,5 +1,7 @@
 #pragma once
 
+// Graphics abstraction layer
+
 #include "Core.hpp"
 #include "Math.hpp"
 
@@ -15,6 +17,13 @@ struct GfxBuffer;
 struct GfxShader;
 struct GfxPipelineState;
 struct GfxRenderPass;
+
+enum GfxBackend
+{
+    GfxBackend_Invalid,
+    GfxBackend_OpenGL,
+    GfxBackend_Vulkan,
+};
 
 enum GfxPixelFormat
 {
@@ -41,21 +50,17 @@ void GfxExecuteCommandBuffer(GfxCommandBuffer *cmd_buffer);
 void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, const char *name);
 void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer);
 
-enum GfxCpuAccessFlags
-{
-    GfxCpuAccess_None  = 0x0,
-    GfxCpuAccess_Read  = 0x1,
-    GfxCpuAccess_Write = 0x2,
-};
+typedef uint32_t GfxCpuAccessFlags;
+#define GfxCpuAccess_None  0x0
+#define GfxCpuAccess_Read  0x1
+#define GfxCpuAccess_Write 0x2
 
-enum GfxBufferUsage
-{
-    GfxBufferUsage_None          = 0x0,
-    GfxBufferUsage_UniformBuffer = 0x1,
-    GfxBufferUsage_StorageBuffer = 0x2,
-    GfxBufferUsage_VertexBuffer  = 0x4,
-    GfxBufferUsage_IndexBuffer   = 0x8,
-};
+typedef uint32_t GfxBufferUsage;
+#define GfxBufferUsage_None          0x0
+#define GfxBufferUsage_UniformBuffer 0x1
+#define GfxBufferUsage_StorageBuffer 0x2
+#define GfxBufferUsage_VertexBuffer  0x4
+#define GfxBufferUsage_IndexBuffer   0x8
 
 struct GfxBufferDesc
 {
@@ -79,13 +84,11 @@ enum GfxTextureType
     GfxTextureType_Texture2D,
 };
 
-enum GfxTextureUsage
-{
-    GfxTextureUsage_Invalid = 0x0,
-    GfxTextureUsage_RenderTarget = 0x1,
-    GfxTextureUsage_DepthStencil = 0x2,
-    GfxTextureUsage_ShaderRead = 0x4,
-};
+typedef uint32_t GfxTextureUsage;
+#define GfxTextureUsage_Invalid      0x0
+#define GfxTextureUsage_RenderTarget 0x1
+#define GfxTextureUsage_DepthStencil 0x2
+#define GfxTextureUsage_ShaderRead   0x4
 
 struct GfxTextureDesc
 {
@@ -110,10 +113,9 @@ enum GfxPipelineStage
     GfxPipelineStage_Fragment,
 };
 
-bool IsNull(GfxShader *shader);
-
-GfxShader GfxLoadSpirVShader(String source_code, GfxPipelineStage stage);
-void GfxDestroyShader(GfxShader *shader);
+typedef uint32_t GfxPipelineStageFlags;
+#define GfxPipelineStageFlag_Vertex   (1 << (uint32_t)GfxPipelineStage_Vertex)
+#define GfxPipelineStageFlag_Fragment (1 << (uint32_t)GfxPipelineStage_Fragment)
 
 enum GfxPrimitiveType
 {
@@ -243,10 +245,32 @@ struct GfxPipelineStateDesc
     GfxPixelFormat depth_format = GfxPixelFormat_Invalid;
 };
 
+enum GfxPipelineBindingType
+{
+    GfxPipelineBindingType_Invalid,
+    GfxPipelineBindingType_UniformBuffer,
+    GfxPipelineBindingType_StorageBuffer,
+    GfxPipelineBindingType_Texture,
+    GfxPipelineBindingType_SamplerState,
+};
+
+struct GfxPipelineBinding
+{
+    GfxPipelineBindingType type = GfxPipelineBindingType_Invalid;
+    String name = {};
+    int index = -1;
+    Slice<int> associated_texture_units = {};
+};
+
 bool IsNull(GfxPipelineState *state);
 
 GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc);
 void GfxDestroyPipelineState(GfxPipelineState *state);
+
+bool IsNull(GfxShader *shader);
+
+GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage, Slice<GfxPipelineBinding> bindings);
+void GfxDestroyShader(GfxShader *shader);
 
 struct GfxRenderPassDesc
 {
@@ -262,6 +286,23 @@ struct GfxRenderPassDesc
     float clear_depth = 0;
     u32 clear_stencil = 0;
 };
+
+static inline void GfxSetColorAttachment(GfxRenderPassDesc *pass_desc, int index, GfxTexture *texture)
+{
+    Assert(index >= 0 && index < Gfx_Max_Color_Attachments);
+
+    pass_desc->color_attachments[index] = texture;
+}
+
+static inline void GfxSetDepthAttachment(GfxRenderPassDesc *pass_desc, GfxTexture *texture)
+{
+    pass_desc->depth_attachment = texture;
+}
+
+static inline void GfxSetStencilAttachment(GfxRenderPassDesc *pass_desc, GfxTexture *texture)
+{
+    pass_desc->stencil_attachment = texture;
+}
 
 static inline void GfxClearColor(GfxRenderPassDesc *pass_desc, int index, Vec4f color)
 {

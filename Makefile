@@ -2,8 +2,8 @@ OPENGL_NAME=vox-gl
 VULKAN_NAME=vox-vk
 
 SRC_DIR=Source
-SRC_FILES=main.cpp core.cpp math.cpp
-OPENGL_SRC_FILES=OpenGL/opengl.cpp OpenGL/render_pass.cpp
+SRC_FILES=main.cpp core.cpp math.cpp renderer.cpp
+OPENGL_SRC_FILES=OpenGL/opengl.cpp OpenGL/render_pass.cpp OpenGL/shader.cpp
 
 INCLUDE_DIRS=Source /usr/include/SDL2
 OPENGL_INCLUDE_DIRS=Third-Party/glad/include
