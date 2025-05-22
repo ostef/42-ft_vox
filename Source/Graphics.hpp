@@ -114,6 +114,7 @@ struct GfxTextureDesc
     GfxTextureType type = GfxTextureType_Invalid;
     GfxPixelFormat pixel_format = GfxPixelFormat_Invalid;
     GfxTextureUsage usage = GfxTextureUsage_Invalid;
+    GfxCpuAccessFlags cpu_access = GfxCpuAccess_None;
     u32 width = 0;
     u32 height = 0;
     u32 num_mipmap_levels = 1;

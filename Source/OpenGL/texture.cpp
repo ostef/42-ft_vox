@@ -188,10 +188,10 @@ void GLPixelFormatAndType(GfxPixelFormat pixel_format, GLenum *format, GLenum *t
 {
     switch (pixel_format)
     {
+    case GfxPixelFormat_DepthFloat32:
     case GfxPixelFormat_Invalid: Panic("Invalid pixel format"); break;
-    case GfxPixelFormat_DepthFloat32: break;
-    case GfxPixelFormat_RGBAUnorm8:  *format = GL_RGBA; *type = GL_UNSIGNED_BYTE; break;
-    case GfxPixelFormat_RGBAFloat32: *format = GL_RGBA; *type = GL_FLOAT;         break;
+    case GfxPixelFormat_RGBAUnorm8:  *format = GL_RGBA; *type = GL_UNSIGNED_BYTE; return;
+    case GfxPixelFormat_RGBAFloat32: *format = GL_RGBA; *type = GL_FLOAT;         return;
     }
 
     *format = 0;
