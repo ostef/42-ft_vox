@@ -35,7 +35,7 @@ static void GLDebugMessageCallback(
     switch (severity)
     {
     case GL_DEBUG_SEVERITY_HIGH:
-        LogError(Log_OpenGL, "%serror%s: (%s) %s", source_str, type_str, id, message);
+        LogError(Log_OpenGL, "%serror%s: (%d) %s", source_str, type_str, id, message);
 
         #ifdef Gfx_Break_On_Error
             Panic("Hit an OpenGL error");
@@ -45,7 +45,7 @@ static void GLDebugMessageCallback(
 
     case GL_DEBUG_SEVERITY_MEDIUM:
     case GL_DEBUG_SEVERITY_LOW:
-        LogWarning(Log_OpenGL, "%swarning%s: (%s) %s", source_str, type_str, id, message);
+        LogWarning(Log_OpenGL, "%swarning%s: (%d) %s", source_str, type_str, id, message);
 
         break;
     }

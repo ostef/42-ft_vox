@@ -265,6 +265,7 @@ struct Array
     s64 count = 0;
     T *data = null;
     s64 allocated = 0;
+    Allocator allocator = {};
 
     inline T &operator [](s64 index)
     {
@@ -293,8 +294,12 @@ void ArrayReserve(Array<T> *arr, s64 capacity)
     if (arr->allocated >= capacity)
         return;
 
-    T *new_data =(T *)realloc(arr->data, capacity * sizeof(T));
+    T *new_data =Alloc<T>(capacity, arr->allocator);
     Assert(new_data != null);
+
+    memcpy(new_data, arr->data, arr->allocated * sizeof(T));
+
+    Free(arr->data, arr->allocator);
 
     arr->data = new_data;
     arr->allocated = capacity;
@@ -303,7 +308,7 @@ void ArrayReserve(Array<T> *arr, s64 capacity)
 template<typename T>
 void ArrayFree(Array<T> *arr)
 {
-    free(arr->data);
+    Free(arr->data, arr->allocator);
     arr->data = null;
     arr->count = 0;
     arr->allocated = 0;

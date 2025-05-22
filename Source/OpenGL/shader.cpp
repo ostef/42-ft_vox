@@ -5,6 +5,115 @@ bool IsNull(GfxShader *shader)
     return shader == null || shader->handle == 0;
 }
 
+static Slice<GfxPipelineBinding> GetGLShaderBindings(String name, GLuint handle, GfxPipelineStage stage)
+{
+    Array<GfxPipelineBinding> bindings{};
+    bindings.allocator = heap;
+
+    int num_uniform_buffers = 0;
+    int num_storage_buffers = 0;
+    int num_uniforms = 0;
+    glGetProgramInterfaceiv(handle, GL_UNIFORM_BLOCK, GL_ACTIVE_RESOURCES, &num_uniform_buffers);
+    glGetProgramInterfaceiv(handle, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &num_storage_buffers);
+    glGetProgramInterfaceiv(handle, GL_UNIFORM, GL_ACTIVE_RESOURCES, &num_uniforms);
+
+    for (int ty = 0; ty < 2; ty += 1)
+    {
+        GfxPipelineBindingType type = ty == 0 ? GfxPipelineBindingType_UniformBuffer : GfxPipelineBindingType_StorageBuffer;
+        GLenum gl_type = type == GfxPipelineBindingType_UniformBuffer ? GL_UNIFORM_BLOCK : GL_SHADER_STORAGE_BLOCK;
+        int num = type == GfxPipelineBindingType_UniformBuffer ? num_uniform_buffers : num_storage_buffers;
+
+        for (int i = 0; i < num; i += 1)
+        {
+            GLenum props[] = {GL_BUFFER_BINDING, GL_NAME_LENGTH};
+            int values[StaticArraySize(props)];
+            glGetProgramResourceiv(handle, gl_type, i, StaticArraySize(props), props, sizeof(values), null, values);
+
+            char *name = Alloc<char>(values[1] + 1, heap);
+            glGetProgramResourceName(handle, gl_type, i, values[1] + 1, null, name);
+
+            GfxPipelineBinding binding{};
+            binding.name = String{values[1], name};
+            binding.type = type;
+            binding.index = values[0];
+            ArrayPush(&bindings, binding);
+        }
+    }
+
+    static const GLenum Sampler_Types[] = {
+        GL_SAMPLER_1D,
+        GL_SAMPLER_2D,
+        GL_SAMPLER_3D,
+        GL_SAMPLER_CUBE,
+        GL_SAMPLER_1D_SHADOW,
+        GL_SAMPLER_2D_SHADOW,
+        GL_SAMPLER_1D_ARRAY,
+        GL_SAMPLER_2D_ARRAY,
+        GL_SAMPLER_1D_ARRAY_SHADOW,
+        GL_SAMPLER_2D_ARRAY_SHADOW,
+        GL_SAMPLER_2D_MULTISAMPLE,
+        GL_SAMPLER_2D_MULTISAMPLE_ARRAY,
+        GL_SAMPLER_CUBE_SHADOW,
+        GL_SAMPLER_BUFFER,
+        GL_SAMPLER_2D_RECT,
+        GL_SAMPLER_2D_RECT_SHADOW,
+        GL_INT_SAMPLER_1D,
+        GL_INT_SAMPLER_2D,
+        GL_INT_SAMPLER_3D,
+        GL_INT_SAMPLER_CUBE,
+        GL_INT_SAMPLER_1D_ARRAY,
+        GL_INT_SAMPLER_2D_ARRAY,
+        GL_INT_SAMPLER_2D_MULTISAMPLE,
+        GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
+        GL_INT_SAMPLER_BUFFER,
+        GL_INT_SAMPLER_2D_RECT,
+        GL_UNSIGNED_INT_SAMPLER_1D,
+        GL_UNSIGNED_INT_SAMPLER_2D,
+        GL_UNSIGNED_INT_SAMPLER_3D,
+        GL_UNSIGNED_INT_SAMPLER_CUBE,
+        GL_UNSIGNED_INT_SAMPLER_1D_ARRAY,
+        GL_UNSIGNED_INT_SAMPLER_2D_ARRAY,
+        GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE,
+        GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY,
+        GL_UNSIGNED_INT_SAMPLER_BUFFER,
+        GL_UNSIGNED_INT_SAMPLER_2D_RECT,
+    };
+
+    for (int i = 0; i < num_uniforms; i += 1)
+    {
+        GLenum props[] = {GL_LOCATION, GL_NAME_LENGTH, GL_TYPE};
+        int values[StaticArraySize(props)];
+        glGetProgramResourceiv(handle, GL_UNIFORM, i, StaticArraySize(props), props, sizeof(values), null, values);
+
+        bool is_sampler = false;
+        for (int j = 0; j < (int)StaticArraySize(Sampler_Types); j += 1)
+        {
+            if (values[2] == (int)Sampler_Types[j])
+            {
+                is_sampler = true;
+                break;
+            }
+        }
+
+        if (!is_sampler)
+            continue;
+
+        char *name = Alloc<char>(values[1] + 1, heap);
+        glGetProgramResourceName(handle, GL_UNIFORM, i, values[1] + 1, null, name);
+
+        int binding_index = -1;
+        glGetUniformiv(handle, values[0], &binding_index);
+
+        GfxPipelineBinding binding{};
+        binding.name = String{values[1], name};
+        binding.type = GfxPipelineBindingType_CombinedSampler;
+        binding.index = binding_index;
+        ArrayPush(&bindings, binding);
+    }
+
+    return {.count=bindings.count, .data=bindings.data};
+}
+
 GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage, Slice<GfxPipelineBinding> bindings)
 {
     const char *stage_name = stage == GfxPipelineStage_Vertex ? "vertex" : "fragment";
@@ -39,6 +148,17 @@ GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage,
     result.bindings = bindings;
 
     return result;
+}
+
+GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage)
+{
+    GfxShader shader = GfxLoadShader(name, source_code, stage, {});
+    if (IsNull(&shader))
+        return shader;
+
+    shader.bindings = GetGLShaderBindings(name, shader.handle, stage);
+
+    return shader;
 }
 
 void GfxDestroyShader(GfxShader *shader)

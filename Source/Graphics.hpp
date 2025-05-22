@@ -252,6 +252,7 @@ enum GfxPipelineBindingType
     GfxPipelineBindingType_StorageBuffer,
     GfxPipelineBindingType_Texture,
     GfxPipelineBindingType_SamplerState,
+    GfxPipelineBindingType_CombinedSampler,
 };
 
 struct GfxPipelineBinding
@@ -270,6 +271,7 @@ void GfxDestroyPipelineState(GfxPipelineState *state);
 bool IsNull(GfxShader *shader);
 
 GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage, Slice<GfxPipelineBinding> bindings);
+GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage);
 void GfxDestroyShader(GfxShader *shader);
 
 struct GfxRenderPassDesc

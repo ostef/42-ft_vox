@@ -11,7 +11,6 @@ static bool LoadShader(ShaderFile *file)
     if (Gfx_Backend == GfxBackend_OpenGL)
     {
         bool has_vertex = false;
-        bool has_fragment = false;
         String vert_filename = TPrintf("Shaders/OpenGL/%.*s.vert.glsl", file->name.length, file->name.data);
         if (FileExists(vert_filename))
         {
@@ -24,7 +23,7 @@ static bool LoadShader(ShaderFile *file)
             }
 
             String source_code = result.value;
-            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Vertex, {});
+            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Vertex);
             if (IsNull(&shader))
                 return false;
 
@@ -37,6 +36,7 @@ static bool LoadShader(ShaderFile *file)
             GfxDestroyShader(&file->vertex_shader);
         }
 
+        bool has_fragment = false;
         String frag_filename = TPrintf("Shaders/OpenGL/%.*s.frag.glsl", file->name.length, file->name.data);
         if (FileExists(frag_filename))
         {
@@ -49,7 +49,7 @@ static bool LoadShader(ShaderFile *file)
             }
 
             String source_code = result.value;
-            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Fragment, {});
+            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Fragment);
             if (IsNull(&shader))
                 return false;
 
