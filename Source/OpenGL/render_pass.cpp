@@ -383,6 +383,32 @@ GLuint GLGetFramebuffer(GfxRenderPassDesc desc)
     return *ptr;
 }
 
+void InvalidateFramebuffersUsingTexture(GLuint handle)
+{
+    foreach(i, g_gfx_context.framebuffer_cache.entries)
+    {
+        auto entry = &g_gfx_context.framebuffer_cache.entries[i];
+        if (entry->hash >= Hash_Map_First_Occupied)
+        {
+            bool should_remove = false;
+            for (int i = 0; i < Gfx_Max_Color_Attachments; i += 1)
+            {
+                if (entry->key.color_textures[i] == handle)
+                {
+                    should_remove = true;
+                    break;
+                }
+            }
+
+            if (should_remove || entry->key.depth_texture == handle || entry->key.stencil_texture == handle)
+            {
+                entry->hash = Hash_Map_Removed;
+                g_gfx_context.framebuffer_cache.count -= 1;
+            }
+        }
+    }
+}
+
 GLenum GLFillMode(GfxFillMode mode)
 {
     switch (mode)

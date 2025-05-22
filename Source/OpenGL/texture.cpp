@@ -56,10 +56,36 @@ GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc)
     };
 }
 
+void InvalidateFramebuffersUsingTexture(GLuint handle);
+
 void GfxDestroyTexture(GfxTexture *texture)
 {
+    InvalidateFramebuffersUsingTexture(texture->handle);
     glDeleteTextures(1, &texture->handle);
     *texture = {};
+}
+
+void GfxReplaceTextureRegion(GfxTexture *texture, Vec3u origin, Vec3u size, u32 mipmap_level, u32 array_slice, void *bytes)
+{
+    auto desc = GetDesc(texture);
+
+    GLenum gl_format, gl_type;
+    GLPixelFormatAndType(desc.pixel_format, &gl_format, &gl_type);
+    Assert(gl_format != 0 && gl_type != 0);
+
+    switch (desc.type)
+    {
+    case GfxTextureType_Texture2D:
+        glTextureSubImage2D(
+            texture->handle,
+            mipmap_level,
+            origin.x, origin.y,
+            size.x, size.y,
+            gl_format, gl_type,
+            bytes
+        );
+        break;
+    }
 }
 
 bool IsNull(GfxSamplerState *sampler)
@@ -156,6 +182,22 @@ GLenum GLPixelFormat(GfxPixelFormat format)
     }
     Panic("Unhandled pixel format");
     return 0;
+}
+
+void GLPixelFormatAndType(GfxPixelFormat pixel_format, GLenum *format, GLenum *type)
+{
+    switch (pixel_format)
+    {
+    case GfxPixelFormat_Invalid: Panic("Invalid pixel format"); break;
+    case GfxPixelFormat_DepthFloat32: break;
+    case GfxPixelFormat_RGBAUnorm8:  *format = GL_RGBA; *type = GL_UNSIGNED_BYTE; break;
+    case GfxPixelFormat_RGBAFloat32: *format = GL_RGBA; *type = GL_FLOAT;         break;
+    }
+
+    *format = 0;
+    *type = 0;
+    Panic("Unhandled pixel format");
+    return;
 }
 
 GLenum GLTextureFilter(GfxSamplerFilter filter, GfxSamplerFilter mip_filter)

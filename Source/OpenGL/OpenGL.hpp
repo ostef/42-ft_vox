@@ -140,5 +140,6 @@ GLenum GLComparisonFunc(GfxCompareFunc func);
 
 GLenum GLTextureType(GfxTextureType type);
 GLenum GLPixelFormat(GfxPixelFormat format);
+void GLPixelFormatAndType(GfxPixelFormat pixel_format, GLenum *format, GLenum *type);
 GLenum GLTextureFilter(GfxSamplerFilter filter, GfxSamplerFilter mip_filter);
 GLenum GLTextureWrap(GfxSamplerAddressMode mode);
