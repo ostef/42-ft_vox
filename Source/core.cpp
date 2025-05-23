@@ -141,6 +141,26 @@ void LogError(const char *section, const char *str, ...)
     printf("\x1b[0m\n");
 }
 
+String GetParentDirectory(String filename)
+{
+    s64 slash_index = filename.length;
+    if (filename[filename.length - 1] == '/')
+        slash_index -= 1;
+
+    while (slash_index > 0 && filename[slash_index - 1] != '/')
+        slash_index -= 1;
+
+    filename.length = slash_index;
+
+    return filename;
+}
+
+String GetAbsoluteFilename(String filename)
+{
+    Panic("@Todo");
+    return filename;
+}
+
 bool FileExists(String filename)
 {
     char *c_filename = CloneToCString(filename, temp);
@@ -179,6 +199,19 @@ bool Equals(const String &a, const String &b)
         return false;
 
     return strncmp(a.data, b.data, a.length) == 0;
+}
+
+String JoinStrings(String a, String b, String separator, Allocator allocator)
+{
+    String result;
+    result.length = a.length + b.length + separator.length;
+    result.data = Alloc<char>(result.length, allocator);
+
+    memcpy(result.data, a.data, a.length);
+    memcpy(result.data + a.length, separator.data, separator.length);
+    memcpy(result.data + a.length + separator.length, b.data, b.length);
+
+    return result;
 }
 
 String CloneString(String str, Allocator allocator)

@@ -16,15 +16,16 @@ static bool LoadShader(ShaderFile *file)
         if (FileExists(vert_filename))
         {
             has_vertex = true;
-            auto result = ReadEntireFile(vert_filename);
-            if (!result.ok)
-            {
-                LogError(Log_Shaders, "Could not read file '%.*s'", vert_filename.length, vert_filename.data);
-                return false;
-            }
 
-            String source_code = result.value;
-            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Vertex);
+            ShaderPreprocessor pp{};
+            if (!InitShaderPreprocessor(&pp, vert_filename))
+                return false;
+
+            auto pp_result = PreprocessShader(&pp);
+            if (!pp_result.ok)
+                return false;
+
+            GfxShader shader = GfxLoadShader(file->name, pp_result.source_code, GfxPipelineStage_Vertex);
             if (IsNull(&shader))
                 return false;
 
@@ -42,15 +43,16 @@ static bool LoadShader(ShaderFile *file)
         if (FileExists(frag_filename))
         {
             has_fragment = true;
-            auto result = ReadEntireFile(frag_filename);
-            if (!result.ok)
-            {
-                LogError(Log_Shaders, "Could not read file '%.*s'", frag_filename.length, frag_filename.data);
-                return false;
-            }
 
-            String source_code = result.value;
-            GfxShader shader = GfxLoadShader(file->name, source_code, GfxPipelineStage_Fragment);
+            ShaderPreprocessor pp{};
+            if (!InitShaderPreprocessor(&pp, frag_filename))
+                return false;
+
+            auto pp_result = PreprocessShader(&pp);
+            if (!pp_result.ok)
+                return false;
+
+            GfxShader shader = GfxLoadShader(file->name, pp_result.source_code, GfxPipelineStage_Fragment);
             if (IsNull(&shader))
                 return false;
 

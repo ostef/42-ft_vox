@@ -1,4 +1,6 @@
-#version 450 core
+#version 450
+
+#include "common.glsl"
 
 layout(std140) uniform frame_info_buffer
 {

@@ -156,8 +156,29 @@ struct String
         this->length = length;
         this->data = data;
     }
+
+    inline char &operator [](s64 index)
+    {
+        Assert(index >= 0 && index < length,
+            "Array bounds check failed (attempted index is %ld, length is %ld)",
+            index, length
+        );
+
+        return data[index];
+    }
+
+    inline const char &operator [](s64 index) const
+    {
+        Assert(index >= 0 && index < length,
+            "Array bounds check failed (attempted index is %ld, length is %ld)",
+            index, length
+        );
+
+        return data[index];
+    }
 };
 
+String JoinStrings(String a, String b, String separator, Allocator allocator);
 String CloneString(String str, Allocator allocator);
 char *CloneToCString(String str, Allocator allocator);
 String SPrintf(const char *fmt, ...);
@@ -194,6 +215,11 @@ struct Result
         return res;
     }
 };
+
+// File stuff
+
+String GetParentDirectory(String filename);
+String GetAbsoluteFilename(String filename);
 
 bool FileExists(String filename);
 Result<String> ReadEntireFile(String filename);

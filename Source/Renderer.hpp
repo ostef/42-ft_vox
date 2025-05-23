@@ -21,6 +21,32 @@ void LoadAllShaders();
 GfxShader *GetVertexShader(String name);
 GfxShader *GetFragmentShader(String name);
 
+struct Lexer
+{
+    String filename = "";
+    String file_contents = "";
+    s64 cursor = 0;
+};
+
+struct ShaderPreprocessor
+{
+    Array<String> all_loaded_files = {};
+    Array<Lexer> file_stack = {};
+    Lexer *current_lexer = null;
+    Array<char> string_builder = {};
+};
+
+struct ShaderPreprocessResult
+{
+    Slice<String> all_loaded_files = {};
+    String source_code = "";
+    bool ok = false;
+};
+
+bool InitShaderPreprocessor(ShaderPreprocessor *pp, String filename);
+void DestroyShaderPreprocessor(ShaderPreprocessor *pp);
+ShaderPreprocessResult PreprocessShader(ShaderPreprocessor *pp);
+
 struct GfxAllocator
 {
     GfxBuffer buffer = {};

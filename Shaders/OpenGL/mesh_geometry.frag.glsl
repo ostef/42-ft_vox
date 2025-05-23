@@ -1,4 +1,6 @@
-#version 450 core
+#version 450
+
+#include "common.glsl"
 
 uniform sampler2D my_texture;
 

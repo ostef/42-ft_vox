@@ -15,7 +15,6 @@ Allocator temp = Allocator{&g_frame_arena, MemoryArenaAllocator};
 SDL_Window *g_window;
 World g_world;
 
-
 int main(int argc, char **args)
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
