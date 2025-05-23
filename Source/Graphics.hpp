@@ -18,6 +18,7 @@ struct GfxBuffer;
 struct GfxShader;
 struct GfxPipelineState;
 struct GfxRenderPass;
+struct GfxCopyPass;
 
 enum GfxBackend
 {
@@ -93,7 +94,7 @@ typedef uint32_t GfxMapAccessFlags;
 #define GfxMapAccess_Read  0x1
 #define GfxMapAccess_Write 0x2
 
-void *GfxMapBuffer(GfxBuffer *buffer, s64 offset, s64 size);
+void *GfxMapBuffer(GfxBuffer *buffer, s64 offset, s64 size, GfxMapAccessFlags access);
 void GfxUnmapBuffer(GfxBuffer *buffer);
 void GfxFlushMappedBuffer(GfxBuffer *buffer, s64 offset, s64 size);
 
@@ -434,6 +435,46 @@ void GfxSetSamplerState(GfxRenderPass *pass, GfxPipelineBinding binding, GfxSamp
 
 void GfxDrawPrimitives(GfxRenderPass *pass, u32 vertex_count, u32 instance_count, u32 base_vertex = 0, u32 base_instance = 0);
 void GfxDrawIndexedPrimitives(GfxRenderPass *pass, GfxBuffer *index_buffer, u32 index_count, GfxIndexType index_type, u32 instance_count, u32 base_vertex = 0, u32 base_index = 0, u32 base_instance = 0);
+
+// Copy Pass
+
+GfxCopyPass GfxBeginCopyPass(String name, GfxCommandBuffer *cmd_buffer);
+void GfxEndCopyPass(GfxCopyPass *pass);
+
+void GfxGenerateMipmaps(GfxCopyPass *pass, GfxTexture *texture);
+
+void GfxCopyTextureToTexture(
+    GfxCopyPass *pass,
+    GfxTexture *src_texture,
+    Vec3u src_origin,
+    Vec3u src_size,
+    GfxTexture *dst_texture,
+    Vec3u dst_origin,
+    u32 src_slice = 0,
+    u32 src_level = 0,
+    u32 dst_slice = 0,
+    u32 dst_level = 0
+);
+
+void GfxCopyTextureToBuffer(
+    GfxCopyPass *pass,
+    GfxTexture *src_texture,
+    Vec3u src_origin,
+    Vec3u src_size,
+    GfxBuffer *dst_buffer,
+    u64 dst_offset,
+    u32 src_slice = 0,
+    u32 src_level = 0
+);
+
+void GfxCopyBufferToBuffer(
+    GfxCopyPass *pass,
+    GfxBuffer *src_buffer,
+    s64 src_offset,
+    GfxBuffer *dst_buffer,
+    s64 dst_offset,
+    s64 size
+);
 
 #if defined(VOX_BACKEND_VULKAN)
 #include "Vulkan/Vulkan.hpp"

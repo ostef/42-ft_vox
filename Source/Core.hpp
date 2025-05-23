@@ -65,6 +65,8 @@ static inline void HandleAssertionFailure(const char *file, int line, const char
     DebugBreak();
 }
 
+extern u64 g_frame_index;
+
 enum AllocatorOp
 {
     AllocatorOp_Alloc,
@@ -361,6 +363,34 @@ template<typename T>
 void ArrayClear(Array<T> *arr)
 {
     arr->count = 0;
+}
+
+template<typename T>
+void ArrayOrderedRemoveAt(Array<T> *arr, s64 index)
+{
+    Assert(index >= 0 && index < arr->count, "Array bounds check failed (got %ld, max is %ld)", index, arr->count);
+
+    for (s64 i = index; i < arr->count - 1; i += 1)
+        arr->data[i] = arr->data[i + 1];
+
+    arr->count -= 1;
+}
+
+#define Fnv_64_Prime        0x100000001b3
+#define Fnv_64_Offset_Basis 0xcbf29ce484222325
+
+static inline u64 Fnv1aHash(u64 val, u64 h = Fnv_64_Offset_Basis)
+{
+    h ^= val;
+    return h * Fnv_64_Prime;
+}
+
+static inline u64 Fnv1aHash(void *data, s64 size, u64 h = Fnv_64_Offset_Basis)
+{
+    for (s64 i = 0; i < size; i += 1)
+        h = Fnv1aHash(((u8*)data)[i], h);
+
+    return h;
 }
 
 #define Hash_Map_Never_Occupied 0

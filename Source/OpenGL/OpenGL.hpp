@@ -89,6 +89,12 @@ struct GfxRenderPass
     GfxBuffer *current_index_buffer = null;
 };
 
+struct GfxCopyPass
+{
+    String name = "";
+    GfxCommandBuffer *cmd_buffer = null;
+};
+
 static const GLenum GL_Sampler_Types[] = {
     GL_SAMPLER_1D,
     GL_SAMPLER_2D,

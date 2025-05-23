@@ -10,46 +10,10 @@ static void GLDebugMessageCallback(
     GLsizei length,
     const GLchar *message,
     const void *user_param
-)
-{
-    const char *source_str = "";
-    switch (source)
-    {
-    case GL_DEBUG_SOURCE_API: source_str = "API "; break;
-    case GL_DEBUG_SOURCE_WINDOW_SYSTEM: source_str = "window system "; break;
-    case GL_DEBUG_SOURCE_SHADER_COMPILER: source_str = "shader compiler "; break;
-    case GL_DEBUG_SOURCE_THIRD_PARTY: source_str = "third party "; break;
-    case GL_DEBUG_SOURCE_APPLICATION: source_str = "application "; break;
-    }
+);
 
-    const char *type_str = "";
-    switch (type)
-    {
-    case GL_DEBUG_TYPE_ERROR: type_str = ""; break;
-    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_str = ", deprecated behavior"; break;
-    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = ", undefined behavior"; break;
-    case GL_DEBUG_TYPE_PORTABILITY: type_str = ", portability concern"; break;
-    case GL_DEBUG_TYPE_PERFORMANCE: type_str = ", performance concern"; break;
-    }
-
-    switch (severity)
-    {
-    case GL_DEBUG_SEVERITY_HIGH:
-        LogError(Log_OpenGL, "%serror%s: (%d) %s", source_str, type_str, id, message);
-
-        #ifdef Gfx_Break_On_Error
-            Panic("Hit an OpenGL error");
-        #endif
-
-        break;
-
-    case GL_DEBUG_SEVERITY_MEDIUM:
-    case GL_DEBUG_SEVERITY_LOW:
-        LogWarning(Log_OpenGL, "%swarning%s: (%d) %s", source_str, type_str, id, message);
-
-        break;
-    }
-}
+static bool CompareOpenGLFramebufferKeys(OpenGLFramebufferKey a, OpenGLFramebufferKey b);
+static u64 HashOpenGLFramebufferKey(OpenGLFramebufferKey key);
 
 void GfxCreateContext(SDL_Window *window)
 {
@@ -83,6 +47,9 @@ void GfxCreateContext(SDL_Window *window)
     g_gfx_context.dummy_swapchain_texture.desc.type = GfxTextureType_Texture2D;
     g_gfx_context.dummy_swapchain_texture.desc.pixel_format = GfxGetSwapchainPixelFormat();
     g_gfx_context.dummy_swapchain_texture.desc.usage = GfxTextureUsage_RenderTarget;
+
+    g_gfx_context.framebuffer_cache.Compare = CompareOpenGLFramebufferKeys;
+    g_gfx_context.framebuffer_cache.Hash = HashOpenGLFramebufferKey;
 
     glGenQueries(StaticArraySize(g_gfx_context.frame_time_queries), g_gfx_context.frame_time_queries);
 
@@ -227,4 +194,63 @@ void GfxBeginDebugGroup(GfxCommandBuffer *cmd_buffer, String name)
 void GfxEndDebugGroup(GfxCommandBuffer *cmd_buffer)
 {
     glPopDebugGroup();
+}
+
+void GLDebugMessageCallback(
+    GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar *message,
+    const void *user_param
+)
+{
+    const char *source_str = "";
+    switch (source)
+    {
+    case GL_DEBUG_SOURCE_API: source_str = "API "; break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM: source_str = "window system "; break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: source_str = "shader compiler "; break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY: source_str = "third party "; break;
+    case GL_DEBUG_SOURCE_APPLICATION: source_str = "application "; break;
+    }
+
+    const char *type_str = "";
+    switch (type)
+    {
+    case GL_DEBUG_TYPE_ERROR: type_str = ""; break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_str = ", deprecated behavior"; break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = ", undefined behavior"; break;
+    case GL_DEBUG_TYPE_PORTABILITY: type_str = ", portability concern"; break;
+    case GL_DEBUG_TYPE_PERFORMANCE: type_str = ", performance concern"; break;
+    }
+
+    switch (severity)
+    {
+    case GL_DEBUG_SEVERITY_HIGH:
+        LogError(Log_OpenGL, "%serror%s: (%d) %s", source_str, type_str, id, message);
+
+        #ifdef Gfx_Break_On_Error
+            Panic("Hit an OpenGL error");
+        #endif
+
+        break;
+
+    case GL_DEBUG_SEVERITY_MEDIUM:
+    case GL_DEBUG_SEVERITY_LOW:
+        LogWarning(Log_OpenGL, "%swarning%s: (%d) %s", source_str, type_str, id, message);
+
+        break;
+    }
+}
+
+static bool CompareOpenGLFramebufferKeys(OpenGLFramebufferKey a, OpenGLFramebufferKey b)
+{
+    return memcmp(&a, &b, sizeof(OpenGLFramebufferKey));
+}
+
+static u64 HashOpenGLFramebufferKey(OpenGLFramebufferKey key)
+{
+    return Fnv1aHash(&key, sizeof(OpenGLFramebufferKey));
 }
