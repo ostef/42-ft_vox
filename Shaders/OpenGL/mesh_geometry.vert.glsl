@@ -1,19 +1,17 @@
-#version 450
+#version 460
 
 #include "common.glsl"
 
+layout(location = 0) in vec3 v_position;
+
 layout(std140) uniform frame_info_buffer
 {
-    vec2 viewport_size;
-    mat4 view;
-    mat4 inv_view;
-    mat4 projection;
-    mat4 inv_projection;
-} frame_info;
+    FrameInfo frame_info;
+};
 
-layout(std430) buffer skinning_matrices_buffer
+layout(std430) readonly buffer chunk_info_buffer
 {
-    mat4 matrices[];
+    ChunkInfo chunk_infos[];
 };
 
 out gl_PerVertex
@@ -23,5 +21,7 @@ out gl_PerVertex
 
 void main()
 {
-    gl_Position = frame_info.projection * frame_info.view * matrices[0] * vec4(1,1,1,1);
+    ChunkInfo chunk_info = chunk_infos[gl_BaseInstance + gl_InstanceID];
+
+    gl_Position = frame_info.camera.projection * frame_info.camera.view * chunk_info.transform * vec4(v_position,1);
 }

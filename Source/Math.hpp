@@ -14,6 +14,7 @@
 #define ToDegs(x) ((x) * 180 / Pi)
 #define Lerp(a, b, t) ((a) * (1 - (t)) + (b) * (t))
 #define InverseLerp(a, b, v) (((v) - (a)) / ((b) - (a)))
+#define AlignForward(x, align) ((((x) + (align) - 1) / (align)) * (align))
 
 struct RNG
 {

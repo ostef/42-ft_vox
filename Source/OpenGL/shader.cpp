@@ -30,7 +30,7 @@ static Slice<GfxPipelineBinding> GetGLShaderBindings(String name, GLuint handle,
             glGetProgramResourceiv(handle, gl_type, i, StaticArraySize(props), props, sizeof(values), null, values);
 
             char *name = Alloc<char>(values[1] + 1, heap);
-            glGetProgramResourceName(handle, gl_type, i, values[1] + 1, null, name);
+            glGetProgramResourceName(handle, gl_type, i, values[1] + 1, &values[1], name);
 
             GfxPipelineBinding binding{};
             binding.name = String{values[1], name};
@@ -63,7 +63,7 @@ static Slice<GfxPipelineBinding> GetGLShaderBindings(String name, GLuint handle,
             continue;
 
         char *name = Alloc<char>(values[1] + 1, heap);
-        glGetProgramResourceName(handle, GL_UNIFORM, i, values[1] + 1, null, name);
+        glGetProgramResourceName(handle, GL_UNIFORM, i, values[1] + 1, &values[1], name);
 
         int binding_index = -1;
         glGetUniformiv(handle, values[0], &binding_index);

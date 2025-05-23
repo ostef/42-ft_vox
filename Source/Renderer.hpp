@@ -4,6 +4,10 @@
 #include "Math.hpp"
 #include "Graphics.hpp"
 
+extern SDL_Window *g_window;
+
+#define Default_Vertex_Buffer_Index 10
+
 struct World;
 struct Chunk;
 enum Block : u8;
@@ -55,6 +59,10 @@ struct GfxAllocator
     s64 capacity = 0;
 };
 
+GfxAllocator *FrameDataGfxAllocator();
+GfxBuffer *FrameDataBuffer();
+Allocator FrameDataAllocator();
+
 void InitGfxAllocator(GfxAllocator *allocator, String name, s64 capacity);
 void FlushGfxAllocator(GfxAllocator *allocator);
 void ResetGfxAllocator(GfxAllocator *allocator);
@@ -100,6 +108,56 @@ struct Mesh
 };
 
 void GenerateChunkMesh(Chunk *chunk);
+
+struct Camera
+{
+    Vec3f position = {};
+    Quatf rotation = {};
+
+    float target_yaw = 0;
+    float current_yaw = 0;
+    float target_pitch = 0;
+    float current_pitch = 0;
+
+    float fov_in_degrees = 80;
+    float z_near_dist = 0.1;
+    float z_far_dist = 1000.0;
+
+    Mat4f transform = {};
+    Mat4f view = {};
+    Mat4f projection = {};
+};
+
+#pragma pack(push, 1)
+
+struct Std140Camera
+{
+    float fov_in_degrees;
+    float z_near_dist;
+    float z_far_dist;
+    u32 _padding0[1] = {0};
+    Mat4f transform;
+    Mat4f view;
+    Mat4f projection;
+};
+
+struct Std140FrameInfo
+{
+    Vec2f window_pixel_size;
+    float window_scale_factor;
+    u32 _padding0[1] = {0};
+    Std140Camera camera;
+};
+
+struct Std430ChunkInfo
+{
+    Mat4f transform;
+};
+
+#pragma pack(pop)
+
+void UpdateCamera(Camera *camera);
+void CalculateCameraMatrices(Camera *camera);
 
 void InitRenderer();
 void RenderGraphics(World *world);

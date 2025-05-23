@@ -54,6 +54,7 @@ void GfxDestroyContext();
 void GfxBeginFrame();
 void GfxSubmitFrame();
 
+s64 GfxGetBufferAlignment();
 int GfxGetBackbufferIndex();
 float GfxGetLastFrameGPUTime();
 
@@ -343,6 +344,30 @@ void GfxDestroyPipelineState(GfxPipelineState *state);
 
 Slice<GfxPipelineBinding> GfxGetVertexStageBindings(GfxPipelineState *state);
 Slice<GfxPipelineBinding> GfxGetFragmentStageBindings(GfxPipelineState *state);
+
+static inline GfxPipelineBinding GfxGetVertexStageBinding(GfxPipelineState *state, String name)
+{
+    auto bindings = GfxGetVertexStageBindings(state);
+    foreach (i, bindings)
+    {
+        if (bindings[i].name == name)
+            return bindings[i];
+    }
+
+    return {};
+}
+
+static inline GfxPipelineBinding GfxGetFragmentStageBinding(GfxPipelineState *state, String name)
+{
+    auto bindings = GfxGetFragmentStageBindings(state);
+    foreach (i, bindings)
+    {
+        if (bindings[i].name == name)
+            return bindings[i];
+    }
+
+    return {};
+}
 
 bool IsNull(GfxShader *shader);
 

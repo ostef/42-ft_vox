@@ -3,7 +3,25 @@
 
 static ShaderFile g_shader_files[] = {
     {.name="mesh_geometry"},
+    {.name="post_processing"},
 };
+
+static GfxAllocator g_frame_data_allocators[Gfx_Max_Frames_In_Flight];
+
+GfxAllocator *FrameDataGfxAllocator()
+{
+    return &g_frame_data_allocators[GfxGetBackbufferIndex()];
+}
+
+GfxBuffer *FrameDataBuffer()
+{
+    return &FrameDataGfxAllocator()->buffer;
+}
+
+Allocator FrameDataAllocator()
+{
+    return MakeAllocator(FrameDataGfxAllocator());
+}
 
 static bool LoadShader(ShaderFile *file)
 {
@@ -173,6 +191,8 @@ s64 GetBufferOffset(GfxAllocator *allocator, void *ptr)
 void *GfxAllocatorFunc(AllocatorOp op, s64 size, void *ptr, void *data)
 {
     GfxAllocator *alloc = (GfxAllocator *)data;
+
+    size = AlignForward(size, GfxGetBufferAlignment());
 
     switch (op)
     {
@@ -409,6 +429,7 @@ struct ChunkMeshUpload
     GfxBuffer *index_buffer = null;
 };
 
+#define Frame_Data_Allocator_Capacity (1 * 1024 * 1024)
 // Enough for the maximum needed for two chunks
 #define Chunk_Mesh_Allocator_Capacity (2 * 4 * 6 * (Chunk_Size * Chunk_Size * Chunk_Height * (sizeof(BlockVertex) + sizeof(u32))))
 
@@ -422,7 +443,8 @@ GfxAllocator *CurrentChunkMeshGfxAllocator()
 
 void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices)
 {
-    Allocator allocator = MakeAllocator(CurrentChunkMeshGfxAllocator());
+    if (vertices.count <= 0 && indices.count <= 0)
+        return;
 
     ChunkMeshUpload upload{};
     upload.vertices = vertices;
@@ -435,6 +457,8 @@ void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32>
 
 void UploadPendingChunkMeshes(GfxCopyPass *pass)
 {
+    ResetGfxAllocator(CurrentChunkMeshGfxAllocator());
+
     if (g_pending_chunk_mesh_uploads.count <= 0)
         return;
 
@@ -475,28 +499,127 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
     LogMessage(Log_Graphics, "Uploaded %d chunks (%ld pending)", num_uploaded, g_pending_chunk_mesh_uploads.count);
 }
 
+void UpdateCamera(Camera *camera)
+{
+    CalculateCameraMatrices(camera);
+}
+
+void CalculateCameraMatrices(Camera *camera)
+{
+    int width, height;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+    float aspect = width / (float)height;
+
+    camera->transform = Mat4fTranslate(camera->position); // * Mat4fFromQuatf(camera->rotation);
+    camera->view = Inverted(camera->transform);
+    camera->projection = Mat4fPerspectiveProjection(ToRads(camera->fov_in_degrees), aspect, camera->z_near_dist);
+}
+
+static GfxPipelineState g_post_processing_pipeline;
+static GfxPipelineState g_chunk_pipeline;
+static GfxTexture g_main_color_texture;
+static GfxTexture g_main_depth_texture;
+
 void InitRenderer()
 {
     g_pending_chunk_mesh_uploads.allocator = heap;
 
     for (int i = 0; i < Gfx_Max_Frames_In_Flight; i += 1)
-    {
+        InitGfxAllocator(&g_frame_data_allocators[i], TPrintf("Frame Data Allocator %d", i), Frame_Data_Allocator_Capacity);
+
+    for (int i = 0; i < Gfx_Max_Frames_In_Flight; i += 1)
         InitGfxAllocator(&g_chunk_upload_allocators[i], TPrintf("Chunk Mesh Allocator %d", i), Chunk_Mesh_Allocator_Capacity);
+
+    {
+        GfxPipelineStateDesc pipeline_desc{};
+        pipeline_desc.vertex_shader = GetVertexShader("post_processing");
+        pipeline_desc.fragment_shader = GetFragmentShader("post_processing");
+        pipeline_desc.color_formats[0] = GfxGetSwapchainPixelFormat();
+
+        g_post_processing_pipeline = GfxCreatePipelineState("Post Processing", pipeline_desc);
+        Assert(!IsNull(&g_post_processing_pipeline));
+    }
+
+    {
+        GfxPipelineStateDesc pipeline_desc{};
+        pipeline_desc.vertex_shader = GetVertexShader("mesh_geometry");
+        pipeline_desc.fragment_shader = GetFragmentShader("mesh_geometry");
+        pipeline_desc.color_formats[0] = GfxPixelFormat_RGBAFloat32;
+        pipeline_desc.depth_format = GfxPixelFormat_DepthFloat32;
+        pipeline_desc.depth_state = {.enabled=true, .write_enabled=true};
+        Array<GfxVertexInputDesc> vertex_layout = {.allocator=heap};
+        ArrayPush(&vertex_layout, {
+            .format=GfxVertexFormat_Float3,
+            .offset=offsetof(BlockVertex, position),
+            .stride=sizeof(BlockVertex),
+            .buffer_index=Default_Vertex_Buffer_Index
+        });
+
+        pipeline_desc.vertex_layout = MakeSlice(vertex_layout);
+
+        g_chunk_pipeline = GfxCreatePipelineState("Chunk", pipeline_desc);
+        Assert(!IsNull(&g_chunk_pipeline));
+    }
+}
+
+static void RecreateRenderTargets()
+{
+    int width, height;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+
+    if (width <= 0 || height <= 0)
+        return;
+
+    auto main_color_desc = GetDesc(&g_main_color_texture);
+    if (main_color_desc.width != (u32)width || main_color_desc.height != (u32)height)
+    {
+        if (!IsNull(&g_main_color_texture))
+            GfxDestroyTexture(&g_main_color_texture);
+
+        GfxTextureDesc desc{};
+        desc.type = GfxTextureType_Texture2D;
+        desc.pixel_format = GfxPixelFormat_RGBAFloat32;
+        desc.width = width;
+        desc.height = height;
+        desc.usage = GfxTextureUsage_ShaderRead | GfxTextureUsage_RenderTarget;
+        g_main_color_texture = GfxCreateTexture("Main Color", desc);
+        Assert(!IsNull(&g_main_color_texture));
+    }
+
+    auto main_depth_desc = GetDesc(&g_main_depth_texture);
+    if (main_depth_desc.width != (u32)width || main_depth_desc.height != (u32)height)
+    {
+        if (!IsNull(&g_main_depth_texture))
+            GfxDestroyTexture(&g_main_depth_texture);
+
+        GfxTextureDesc desc{};
+        desc.type = GfxTextureType_Texture2D;
+        desc.pixel_format = GfxPixelFormat_DepthFloat32;
+        desc.width = width;
+        desc.height = height;
+        desc.usage = GfxTextureUsage_DepthStencil;
+        g_main_depth_texture = GfxCreateTexture("Main Depth", desc);
+        Assert(!IsNull(&g_main_depth_texture));
     }
 }
 
 void RenderGraphics(World *world)
 {
+    int window_w, window_h;
+    SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
+
+    RecreateRenderTargets();
+
+    GfxBeginFrame();
+    GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Frame");
+
+    ResetGfxAllocator(FrameDataGfxAllocator());
+
+    // Generate dirty chunk meshes
     foreach (i, world->dirty_chunks)
         GenerateChunkMesh(world->dirty_chunks[i]);
 
     ArrayClear(&world->dirty_chunks);
-
-    GfxBeginFrame();
-
-    ResetGfxAllocator(CurrentChunkMeshGfxAllocator());
-
-    GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Frame");
 
     GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", &cmd_buffer);
     {
@@ -504,16 +627,83 @@ void RenderGraphics(World *world)
     }
     GfxEndCopyPass(&upload_pass);
 
-    GfxRenderPassDesc pass_desc{};
-    GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
-    GfxClearColor(&pass_desc, 0, {1.0, 0.1, 0.1, 1.0});
+    Std140FrameInfo *frame_info = Alloc<Std140FrameInfo>(FrameDataAllocator());
+    *frame_info = {
+        .window_pixel_size={(float)window_w, (float)window_h},
+        .window_scale_factor=1,
+        .camera={
+            .fov_in_degrees=world->camera.fov_in_degrees,
+            .z_near_dist=world->camera.z_near_dist,
+            .z_far_dist=world->camera.z_far_dist,
+            .transform=world->camera.transform,
+            .view=world->camera.view,
+            .projection=world->camera.projection,
+        },
+    };
+    Assert(frame_info != null);
+    s64 frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), frame_info);
 
-    auto pass = GfxBeginRenderPass("Test", &cmd_buffer, pass_desc);
+    Std430ChunkInfo *chunk_infos = Alloc<Std430ChunkInfo>(world->all_chunks.count, FrameDataAllocator());
+    Assert(chunk_infos != null);
+    s64 chunk_offset = GetBufferOffset(FrameDataGfxAllocator(), chunk_infos);
+
+    foreach (i, world->all_chunks)
     {
+        auto chunk = world->all_chunks[i];
+        chunk_infos[i] = {
+            .transform=Mat4fTranslate(Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size}),
+        };
     }
-    GfxEndRenderPass(&pass);
 
-    GfxExecuteCommandBuffer(&cmd_buffer);
+    {
+        GfxRenderPassDesc pass_desc{};
+        GfxSetColorAttachment(&pass_desc, 0, &g_main_color_texture);
+        GfxSetDepthAttachment(&pass_desc, &g_main_depth_texture);
+        GfxClearColor(&pass_desc, 0, {0,0,0,1});
+        GfxClearDepth(&pass_desc, 1);
 
-    GfxSubmitFrame();
+        auto pass = GfxBeginRenderPass("Chunk", &cmd_buffer, pass_desc);
+        {
+            GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
+            GfxSetPipelineState(&pass, &g_chunk_pipeline);
+
+            auto vertex_frame_info = GfxGetVertexStageBinding(&g_chunk_pipeline, "frame_info_buffer");
+            auto vertex_chunk_info = GfxGetVertexStageBinding(&g_chunk_pipeline, "chunk_info_buffer");
+
+            GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), frame_info_offset, sizeof(Std140FrameInfo));
+            GfxSetBuffer(&pass, vertex_chunk_info, FrameDataBuffer(), chunk_offset, sizeof(Std430ChunkInfo) * world->all_chunks.count);
+
+            foreach (i, world->all_chunks)
+            {
+                auto chunk = world->all_chunks[i];
+
+                GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
+
+                GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, chunk->mesh.index_count, GfxIndexType_Uint32, 1, 0, 0, (u32)i);
+            }
+        }
+        GfxEndRenderPass(&pass);
+    }
+
+    {
+        GfxRenderPassDesc pass_desc{};
+        GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
+        GfxClearColor(&pass_desc, 0, {0,0,0,1});
+
+        auto pass = GfxBeginRenderPass("Post Processing", &cmd_buffer, pass_desc);
+        {
+            GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
+            GfxSetPipelineState(&pass, &g_post_processing_pipeline);
+
+            auto fragment_main_texture = GfxGetFragmentStageBinding(&g_post_processing_pipeline, "main_texture");
+            GfxSetTexture(&pass, fragment_main_texture, &g_main_color_texture);
+
+            GfxDrawPrimitives(&pass, 6, 1);
+        }
+        GfxEndRenderPass(&pass);
+
+        GfxExecuteCommandBuffer(&cmd_buffer);
+
+        GfxSubmitFrame();
+    }
 }

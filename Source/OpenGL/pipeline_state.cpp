@@ -14,6 +14,9 @@ GfxPipelineStateDesc GetDesc(GfxPipelineState *state)
 
 GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc)
 {
+    if (!desc.vertex_shader)
+        return {};
+
     GfxPipelineState result{};
     result.desc = desc;
 
@@ -48,6 +51,8 @@ GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc)
 
         glVertexArrayAttribBinding(result.vao, i, layout.buffer_index);
     }
+
+    SetupPipelineBindings(&result);
 
     return result;
 }

@@ -17,7 +17,9 @@ struct ChunkKey
 struct World
 {
     u32 seed;
+    Camera camera {};
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
+    Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
 };
 

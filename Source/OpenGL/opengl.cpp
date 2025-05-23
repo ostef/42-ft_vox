@@ -48,6 +48,14 @@ void GfxCreateContext(SDL_Window *window)
     g_gfx_context.dummy_swapchain_texture.desc.pixel_format = GfxGetSwapchainPixelFormat();
     g_gfx_context.dummy_swapchain_texture.desc.usage = GfxTextureUsage_RenderTarget;
 
+    int uniform_buffer_offset_alignment = 0;
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &uniform_buffer_offset_alignment);
+
+    int storage_buffer_offset_alignment = 0;
+    glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &storage_buffer_offset_alignment);
+
+    g_gfx_context.buffer_alignment = Max(uniform_buffer_offset_alignment, storage_buffer_offset_alignment);
+
     g_gfx_context.framebuffer_cache.Compare = CompareOpenGLFramebufferKeys;
     g_gfx_context.framebuffer_cache.Hash = HashOpenGLFramebufferKey;
 
@@ -106,6 +114,11 @@ void GfxSubmitFrame()
     SDL_GL_SwapWindow(g_gfx_context.window);
 
     g_gfx_context.backbuffer_index = (g_gfx_context.backbuffer_index + 1) % Gfx_Max_Frames_In_Flight;
+}
+
+s64 GfxGetBufferAlignment()
+{
+    return g_gfx_context.buffer_alignment;
 }
 
 int GfxGetBackbufferIndex()

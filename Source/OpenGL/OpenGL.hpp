@@ -40,6 +40,8 @@ struct GfxContext
 
     HashMap<OpenGLFramebufferKey, GLuint> framebuffer_cache = {};
 
+    s64 buffer_alignment = 0;
+
     int backbuffer_index = 0;
 
     float last_frame_gpu_time = 0;

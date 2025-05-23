@@ -31,8 +31,8 @@ int main(int argc, char **args)
     GfxCreateContext(g_window);
     defer(GfxDestroyContext());
 
-    InitRenderer();
     LoadAllShaders();
+    InitRenderer();
 
     InitWorld(&g_world, 123456);
     for (s16 x = -2; x < 2; x += 1)
@@ -56,6 +56,8 @@ int main(int argc, char **args)
             if (event.type == SDL_QUIT)
                 quit = true;
         }
+
+        UpdateCamera(&g_world.camera);
 
         RenderGraphics(&g_world);
     }

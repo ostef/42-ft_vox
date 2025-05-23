@@ -329,6 +329,12 @@ struct Array
 };
 
 template<typename T>
+Slice<T> MakeSlice(Array<T> arr)
+{
+    return Slice<T>{.count=arr.count, .data=arr.data};
+}
+
+template<typename T>
 void ArrayReserve(Array<T> *arr, s64 capacity)
 {
     if (arr->allocated >= capacity)

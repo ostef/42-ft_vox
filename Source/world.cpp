@@ -19,6 +19,7 @@ void InitWorld(World *world, u32 seed)
     world->chunks_by_position.Compare = CompareChunkKeys;
     world->chunks_by_position.Hash = HashChunkKey;
 
+    world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
 }
 
@@ -42,5 +43,6 @@ void GenerateChunk(World *world, s16 x, s16 z)
 
     chunk->is_generated = true;
     HashMapInsert(&world->chunks_by_position, {.x=x, .z=z}, chunk);
+    ArrayPush(&world->all_chunks, chunk);
     ArrayPush(&world->dirty_chunks, chunk);
 }
