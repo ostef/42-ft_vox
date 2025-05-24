@@ -7,6 +7,9 @@
 #define Chunk_Height 256
 #define Chunk_Size 16
 
+extern float base_height;
+extern float squashing_factor;
+
 struct Chunk;
 
 struct ChunkKey
@@ -49,6 +52,12 @@ struct World
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
     Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
+
+    NoiseParams squashing_factor_params = {};
+    NoiseParams level_height_params = {};
+
+    Slice<Vec2f> squashing_factor_offsets = {};
+    Slice<Vec2f> level_height_offsets = {};
 };
 
 enum Block : u8
@@ -89,6 +98,9 @@ Block GetBlock(Chunk *chunk, int x, int y, int z);
 Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z);
 
 void InitWorld(World *world, u32 seed);
+void DestroyWorld(World *world);
+void DestroyChunk(World *world, Chunk *chunk);
+
 void GenerateChunk(World *world, s16 x, s16 z);
 
 void MarkChunkDirty(World *world, Chunk *chunk);

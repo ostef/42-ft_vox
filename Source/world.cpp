@@ -83,6 +83,8 @@ Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
 
 void InitWorld(World *world, u32 seed)
 {
+    *world = {};
+
     world->seed = seed;
 
     world->camera.position.y = 140;
@@ -93,15 +95,99 @@ void InitWorld(World *world, u32 seed)
 
     world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
+
+    world->squashing_factor_params = {
+        .scale=10,
+        .octaves=5,
+        .persistance=0.7,
+    };
+    world->squashing_factor_params.max_amplitude = PerlinFractalMax(world->squashing_factor_params.octaves, world->squashing_factor_params.persistance);
+
+    world->level_height_params = {
+        .scale=1.2347,
+        .octaves=5,
+        .persistance=0.7,
+    };
+    world->level_height_params.max_amplitude = PerlinFractalMax(world->level_height_params.octaves, world->level_height_params.persistance);
+
+    world->squashing_factor_offsets = AllocSlice<Vec2f>(world->squashing_factor_params.octaves, heap);
+    world->level_height_offsets = AllocSlice<Vec2f>(world->level_height_params.octaves, heap);
+
+    RNG rng{};
+    RandomSeed(&rng, seed * 123456);
+
+    PerlinGenerateOffsets(&rng, &world->squashing_factor_offsets);
+    PerlinGenerateOffsets(&rng, &world->level_height_offsets);
 }
+
+void DestroyWorld(World *world)
+{
+    while (world->all_chunks.count > 0)
+        DestroyChunk(world, world->all_chunks[0]);
+
+    HashMapFree(&world->chunks_by_position);
+    ArrayFree(&world->all_chunks);
+    ArrayFree(&world->dirty_chunks);
+    Free(world->squashing_factor_offsets.data, heap);
+    Free(world->level_height_offsets.data, heap);
+}
+
+void DestroyChunk(World *world, Chunk *chunk)
+{
+    CancelChunkMeshUpload(chunk);
+
+    if (chunk->east)
+    {
+        chunk->east->west = null;
+        MarkChunkDirty(world, chunk->east);
+    }
+    if (chunk->west)
+    {
+        chunk->west->east = null;
+        MarkChunkDirty(world, chunk->west);
+    }
+    if (chunk->north)
+    {
+        chunk->north->south = null;
+        MarkChunkDirty(world, chunk->north);
+    }
+    if (chunk->south)
+    {
+        chunk->south->north = null;
+        MarkChunkDirty(world, chunk->south);
+    }
+
+    GfxDestroyBuffer(&chunk->mesh.vertex_buffer);
+    GfxDestroyBuffer(&chunk->mesh.index_buffer);
+
+    foreach (i, world->dirty_chunks)
+    {
+        if (world->dirty_chunks[i] == chunk)
+        {
+            ArrayOrderedRemoveAt(&world->dirty_chunks, i);
+            break;
+        }
+    }
+
+    foreach (i, world->all_chunks)
+    {
+        if (world->all_chunks[i] == chunk)
+        {
+            ArrayOrderedRemoveAt(&world->all_chunks, i);
+            break;
+        }
+    }
+
+    HashMapRemove(&world->chunks_by_position, ChunkKey{chunk->x, chunk->z});
+
+    Free(chunk, heap);
+}
+
+float base_height = 127;
+float squashing_factor = 1.0;
 
 void GenerateChunk(World *world, s16 x, s16 z)
 {
-    RNG rng{};
-    RandomSeed(&rng, world->seed);
-    float noise_x_offset = RandomGetRangef(&rng, -1000, 1000);
-    float noise_y_offset = RandomGetRangef(&rng, -1000, 1000);
-
     Chunk *chunk = Alloc<Chunk>(heap);
     chunk->x = x;
     chunk->z = z;
@@ -112,18 +198,22 @@ void GenerateChunk(World *world, s16 x, s16 z)
         {
             for (int ix = 0; ix < Chunk_Size; ix += 1)
             {
-                float perlin_x = (x * Chunk_Size + ix) * 0.0123;
-                float perlin_y = iy * 0.123;
-                float perlin_z = (z * Chunk_Size + iz) * 0.0123;
-                float height = PerlinNoise(perlin_x, perlin_z);
-                height = (height + 1) * 0.5;
-                height = 128 + height * 10;
+                // auto params = SampleWorldParams(world, (float)(x * Chunk_Size + ix), (float)iy, (float)(z * Chunk_Size + iz));
+
+                float scale = 0.0623;
+
+                float perlin_x = (x * Chunk_Size + ix) * scale;
+                float perlin_y = iy * scale;
+                float perlin_z = (z * Chunk_Size + iz) * scale;
+
+                float density = PerlinNoise(perlin_x, perlin_y, perlin_z);
+                float density_bias = (base_height - iy) * squashing_factor * 0.15;
 
                 int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
-                if (iy > height)
-                    chunk->blocks[index] = Block_Air;
-                else
+                if (density + density_bias > 0)
                     chunk->blocks[index] = Block_Stone;
+                else
+                    chunk->blocks[index] = Block_Air;
             }
         }
     }
@@ -173,16 +263,15 @@ void MarkChunkDirty(World *world, Chunk *chunk)
     ArrayPush(&world->dirty_chunks, chunk);
 }
 
-// WorldParams SampleWorldParams(World *world, float x, float y, float z)
-// {
-//     RNG rng{};
-//     RandomSeed(&rng, world->seed);
+WorldParams SampleWorldParams(World *world, float x, float y, float z)
+{
+    WorldParams result = {
+        .squashing_factor = PerlinFractalNoise(world->squashing_factor_params, world->squashing_factor_offsets, x, z),
+        .level_height = PerlinFractalNoise(world->level_height_params, world->level_height_offsets, x, z),
+    };
 
-//     WorldParams result = {
-//         .squashing_factor = 0,
-//         .level_height = 0,
-//     };
-// }
+    return result;
+}
 
-// Block GetBlock(World *world, float x, float y, float z);
-// Block GetBlock(World *world, WorldParams params);
+Block GetBlock(World *world, float x, float y, float z);
+Block GetBlock(World *world, WorldParams params);

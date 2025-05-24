@@ -583,6 +583,21 @@ GfxAllocator *CurrentChunkMeshGfxAllocator()
     return &g_chunk_upload_allocators[GfxGetBackbufferIndex()];
 }
 
+void CancelChunkMeshUpload(Chunk *chunk)
+{
+    foreach (i, g_pending_chunk_mesh_uploads)
+    {
+        auto upload = g_pending_chunk_mesh_uploads[i];
+        if (upload.vertex_buffer == &chunk->mesh.vertex_buffer || upload.index_buffer == &chunk->mesh.index_buffer)
+        {
+            ArrayFree(&upload.vertices);
+            ArrayFree(&upload.indices);
+            ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
+            break;
+        }
+    }
+}
+
 void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices)
 {
     if (vertices.count <= 0 && indices.count <= 0)

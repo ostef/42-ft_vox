@@ -70,6 +70,8 @@ int main(int argc, char **args)
     InitRenderer();
 
     InitWorld(&g_world, 123456);
+    defer(DestroyWorld(&g_world));
+
     for (s16 x = -2; x < 3; x += 1)
     {
         for (s16 z = -2; z < 3; z += 1)
@@ -101,6 +103,50 @@ int main(int argc, char **args)
                 quit = true;
 
             HandleInputEvent(event);
+        }
+
+        bool regenerate = false;
+        if (IsKeyPressed(SDL_SCANCODE_1))
+        {
+            base_height -= 5;
+            base_height = Clamp(base_height, 0, Chunk_Height - 1);
+            regenerate = true;
+        }
+        if (IsKeyPressed(SDL_SCANCODE_2))
+        {
+            base_height += 5;
+            base_height = Clamp(base_height, 0, Chunk_Height - 1);
+            regenerate = true;
+        }
+        if (IsKeyPressed(SDL_SCANCODE_3))
+        {
+            squashing_factor -= 0.1;
+            squashing_factor = Clamp(squashing_factor, 0, 1);
+            regenerate = true;
+        }
+        if (IsKeyPressed(SDL_SCANCODE_4))
+        {
+            squashing_factor += 0.1;
+            squashing_factor = Clamp(squashing_factor, 0, 1);
+            regenerate = true;
+        }
+
+        if (regenerate)
+        {
+            Camera camera = g_world.camera;
+
+            DestroyWorld(&g_world);
+            InitWorld(&g_world, 123456);
+
+            g_world.camera = camera;
+
+            for (s16 x = -2; x < 3; x += 1)
+            {
+                for (s16 z = -2; z < 3; z += 1)
+                {
+                    GenerateChunk(&g_world, x, z);
+                }
+            }
         }
 
         UIBeginFrame();

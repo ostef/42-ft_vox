@@ -13,8 +13,14 @@ enum MouseButton
 };
 
 bool IsMouseButtonDown(MouseButton button);
-bool IsKeyDown(SDL_Scancode scancode);
+bool IsMouseButtonPressed(MouseButton button);
+bool IsMouseButtonReleased(MouseButton button);
+
 Vec2f GetMouseDelta();
+
+bool IsKeyDown(SDL_Scancode scancode);
+bool IsKeyPressed(SDL_Scancode scancode);
+bool IsKeyReleased(SDL_Scancode scancode);
 
 void HandleInputEvent(SDL_Event event);
 void UpdateInput();

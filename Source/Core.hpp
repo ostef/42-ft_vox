@@ -454,6 +454,15 @@ struct HashMap
 };
 
 template<typename TKey, typename TValue>
+void HashMapFree(HashMap<TKey, TValue> *map)
+{
+    Free(map->entries.data, map->allocator);
+    map->entries = {};
+    map->occupied = 0;
+    map->count = 0;
+}
+
+template<typename TKey, typename TValue>
 void HashMapGrow(HashMap<TKey, TValue> *map)
 {
     typedef typename HashMap<TKey, TValue>::Entry Entry;
