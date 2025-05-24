@@ -96,6 +96,27 @@ void InitWorld(World *world, u32 seed)
     world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
 
+    world->continentalness_params = {
+        .scale=10,
+        .octaves=5,
+        .persistance=0.7,
+    };
+    world->continentalness_params.max_amplitude = PerlinFractalMax(world->continentalness_params.octaves, world->continentalness_params.persistance);
+
+    world->erosion_params = {
+        .scale=10,
+        .octaves=5,
+        .persistance=0.7,
+    };
+    world->erosion_params.max_amplitude = PerlinFractalMax(world->erosion_params.octaves, world->erosion_params.persistance);
+
+    world->peaks_and_valleys_params = {
+        .scale=10,
+        .octaves=5,
+        .persistance=0.7,
+    };
+    world->peaks_and_valleys_params.max_amplitude = PerlinFractalMax(world->peaks_and_valleys_params.octaves, world->peaks_and_valleys_params.persistance);
+
     world->squashing_factor_params = {
         .scale=10,
         .octaves=5,

@@ -80,12 +80,7 @@ int main(int argc, char **args)
         }
     }
 
-    NoiseParams noise_params{};
-    noise_params.scale = 0.05;
-    noise_params.octaves = 5;
-    noise_params.persistance = 0.5;
-    noise_params.max_amplitude = PerlinFractalMax(noise_params.octaves, noise_params.persistance);
-    auto noise_texture = GenerateNoiseTexture("Noise", 123456, noise_params, 256);
+    auto noise_texture = GenerateNoiseTexture("Continentalness", 123456, g_world.continentalness_params, 256);
 
     bool quit = false;
     while(!quit)
@@ -151,6 +146,7 @@ int main(int argc, char **args)
 
         UIBeginFrame();
         UIImage(10, 10, 256, 256, &noise_texture);
+        UIText(10, 300, TPrintf("squashing_factor: %.2f\nbase_height: %.2f", squashing_factor, base_height));
 
         UpdateCamera(&g_world.camera);
 

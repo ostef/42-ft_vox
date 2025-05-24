@@ -53,6 +53,14 @@ struct World
     Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
 
+    NoiseParams continentalness_params = {};
+    NoiseParams erosion_params = {};
+    NoiseParams peaks_and_valleys_params = {};
+
+    Slice<Vec2f> continentalness_offsets = {};
+    Slice<Vec2f> erosion_offsets = {};
+    Slice<Vec2f> peaks_and_valleys_offsets = {};
+
     NoiseParams squashing_factor_params = {};
     NoiseParams level_height_params = {};
 

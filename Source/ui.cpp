@@ -1,6 +1,8 @@
 #include "UI.hpp"
 #include "Renderer.hpp"
 
+#include <stb_image.h>
+
 struct UIVertex
 {
     Vec2f position;
@@ -17,12 +19,36 @@ struct UIRectElement
     Vec2f uv0, uv1;
 };
 
+#define UI_Font_Char_Width 6
+#define UI_Font_Char_Height 10
+
+static const char UI_Font_Chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()[]{}<>/*:#%!?.,'\"@&$";
+
 static Array<UIRectElement> g_ui_elements;
+static GfxTexture g_ui_font;
 
 void UIBeginFrame()
 {
     if (!g_ui_elements.allocator.func)
         g_ui_elements.allocator = heap;
+
+    if (IsNull(&g_ui_font))
+    {
+        int width, height;
+        u8 *pixels = stbi_load("Data/Fonts/minogram_6x10.png", &width, &height, null, 4);
+        Assert(pixels != null, "Could not load font");
+
+        GfxTextureDesc desc{};
+        desc.type = GfxTextureType_Texture2D;
+        desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+        desc.width = (u32)width;
+        desc.height = (u32)height;
+        desc.usage = GfxTextureUsage_ShaderRead;
+        g_ui_font = GfxCreateTexture("UI Font", desc);
+        Assert(!IsNull(&g_ui_font));
+
+        GfxReplaceTextureRegion(&g_ui_font, {0,0,0}, {(u32)width,(u32)height,1}, 0, 0, pixels);
+    }
 
     ArrayClear(&g_ui_elements);
 }
@@ -95,8 +121,8 @@ static void InitPipeline()
     g_ui_pipeline = GfxCreatePipelineState("UI", desc);
 
     GfxSamplerStateDesc sampler_desc{};
-    sampler_desc.min_filter = GfxSamplerFilter_Linear;
-    sampler_desc.mag_filter = GfxSamplerFilter_Linear;
+    sampler_desc.min_filter = GfxSamplerFilter_Nearest;
+    sampler_desc.mag_filter = GfxSamplerFilter_Nearest;
     g_ui_texture_sampler = GfxCreateSamplerState("UI", sampler_desc);
 }
 
@@ -152,16 +178,63 @@ void UIRender(FrameRenderContext *ctx)
     GfxEndRenderPass(&pass);
 }
 
-void UIImage(float x, float y, float w, float h, GfxTexture *texture, Vec4f color, Vec2f uv0, Vec2f uv1)
+void UIImage(float x, float y, float w, float h, GfxTexture *texture, Vec2f uv0, Vec2f uv1)
 {
     UIRectElement elem = {
         .position = {x, y},
         .size = {w, h},
         .texture = texture,
-        .color = color,
+        .color = {1,1,1,1},
         .uv0 = uv0,
         .uv1 = uv1,
     };
 
     ArrayPush(&g_ui_elements, elem);
+}
+
+void UIText(float x, float y, String text, float scale)
+{
+    float x_origin = x;
+    float y_origin = y;
+
+    for (int i = 0; i < text.length; i += 1)
+    {
+        int char_index = -1;
+        for (int j = 0; j < (int)StaticArraySize(UI_Font_Chars); j += 1)
+        {
+            if (UI_Font_Chars[j] == text[i])
+            {
+                char_index = j;
+                break;
+            }
+        }
+
+        if (char_index >= 0)
+        {
+            UIRectElement elem = {};
+            elem.position = {x,y};
+            elem.size = Vec2f{UI_Font_Char_Width, UI_Font_Char_Height} * scale;
+            elem.texture = &g_ui_font;
+            elem.color = {1,1,1,1};
+
+            int num_chars_x = GetDesc(&g_ui_font).width / UI_Font_Char_Width;
+            int num_chars_y = GetDesc(&g_ui_font).height / UI_Font_Char_Height;
+            elem.uv0.x = (char_index % num_chars_x) / (float)num_chars_x;
+            elem.uv0.y = (char_index / num_chars_x + 1) / (float)num_chars_y;
+            elem.uv1.x = elem.uv0.x + 1 / (float)num_chars_x;
+            elem.uv1.y = elem.uv0.y - 1 / (float)num_chars_y;
+
+            ArrayPush(&g_ui_elements, elem);
+        }
+
+        if (text[i] == '\n')
+        {
+            x = x_origin;
+            y += UI_Font_Char_Height * scale;
+        }
+        else
+        {
+            x += UI_Font_Char_Width * scale;
+        }
+    }
 }
