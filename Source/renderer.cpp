@@ -567,8 +567,7 @@ struct ChunkMeshUpload
 {
     Array<BlockVertex> vertices = {};
     Array<u32> indices = {};
-    GfxBuffer *vertex_buffer = null;
-    GfxBuffer *index_buffer = null;
+    Mesh *mesh = null;
 };
 
 #define Frame_Data_Allocator_Capacity (1 * 1024 * 1024)
@@ -588,7 +587,7 @@ void CancelChunkMeshUpload(Chunk *chunk)
     foreach (i, g_pending_chunk_mesh_uploads)
     {
         auto upload = g_pending_chunk_mesh_uploads[i];
-        if (upload.vertex_buffer == &chunk->mesh.vertex_buffer || upload.index_buffer == &chunk->mesh.index_buffer)
+        if (upload.mesh == &chunk->mesh)
         {
             ArrayFree(&upload.vertices);
             ArrayFree(&upload.indices);
@@ -606,8 +605,8 @@ void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32>
     ChunkMeshUpload upload{};
     upload.vertices = vertices;
     upload.indices = indices;
-    upload.vertex_buffer = &chunk->mesh.vertex_buffer;
-    upload.index_buffer = &chunk->mesh.index_buffer;
+    upload.mesh = &chunk->mesh;
+    upload.mesh->uploaded = false;
 
     ArrayPush(&g_pending_chunk_mesh_uploads, upload);
 }
@@ -644,8 +643,10 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
         ArrayFree(&upload.vertices);
         ArrayFree(&upload.indices);
 
-        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, vertices_offset, upload.vertex_buffer, 0, vertices_size);
-        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, indices_offset, upload.index_buffer, 0, indices_size);
+        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, vertices_offset, &upload.mesh->vertex_buffer, 0, vertices_size);
+        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, indices_offset, &upload.mesh->index_buffer, 0, indices_size);
+
+        upload.mesh->uploaded = true;
 
         ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
         num_uploaded += 1;
@@ -838,6 +839,8 @@ void RenderGraphics(World *world)
             foreach (i, world->all_chunks)
             {
                 auto chunk = world->all_chunks[i];
+                if (!chunk->mesh.uploaded)
+                    continue;
 
                 GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
 
