@@ -260,7 +260,7 @@ void GLDebugMessageCallback(
 
 static bool CompareOpenGLFramebufferKeys(OpenGLFramebufferKey a, OpenGLFramebufferKey b)
 {
-    return memcmp(&a, &b, sizeof(OpenGLFramebufferKey));
+    return memcmp(&a, &b, sizeof(OpenGLFramebufferKey)) == 0;
 }
 
 static u64 HashOpenGLFramebufferKey(OpenGLFramebufferKey key)
