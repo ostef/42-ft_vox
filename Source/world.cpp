@@ -12,6 +12,48 @@ static u64 HashChunkKey(ChunkKey key)
     return Fnv1aHash(&key, sizeof(ChunkKey));
 }
 
+void UpdateCamera(Camera *camera)
+{
+    bool moving = IsMouseButtonDown(MouseButton_Right);
+    SDL_SetRelativeMouseMode((SDL_bool)moving);
+
+    if (moving)
+    {
+        Vec2f rotation = GetMouseDelta() * camera->rotation_speed;
+
+        camera->target_yaw += ToRads(rotation.x);
+        camera->target_pitch += ToRads(rotation.y);
+        camera->target_pitch = Clamp(camera->target_pitch, ToRads(-90), ToRads(90));
+
+        camera->current_yaw = Lerp(camera->current_yaw, camera->target_yaw, camera->rotation_smoothing);
+        camera->current_pitch = Lerp(camera->current_pitch, camera->target_pitch, camera->rotation_smoothing);
+
+        Mat4f rotation_mat = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
+
+        Vec3f movement{};
+        movement.x = (float)IsKeyDown(SDL_SCANCODE_D) - (float)IsKeyDown(SDL_SCANCODE_A);
+        movement.y = (float)(IsKeyDown(SDL_SCANCODE_E) || IsKeyDown(SDL_SCANCODE_SPACE)) - (float)(IsKeyDown(SDL_SCANCODE_Q) || IsKeyDown(SDL_SCANCODE_LCTRL));
+        movement.z = (float)IsKeyDown(SDL_SCANCODE_W) - (float)IsKeyDown(SDL_SCANCODE_S);
+        movement = Normalized(movement);
+        if (IsKeyDown(SDL_SCANCODE_LSHIFT))
+            movement *= camera->fast_speed * camera->speed_mult;
+        else
+            movement *= camera->base_speed * camera->speed_mult;
+
+        camera->position += RightVector(rotation_mat) * movement.x + UpVector(rotation_mat) * movement.y + ForwardVector(rotation_mat) * movement.z;
+    }
+
+    // Calculate camera matrices
+    int width, height;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+    float aspect = width / (float)height;
+
+    Mat4f rotation = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
+    camera->transform = Mat4fTranslate(camera->position) * rotation;
+    camera->view = Inverted(camera->transform);
+    camera->projection = Mat4fPerspectiveProjection(camera->fov_in_degrees, aspect, camera->z_near_dist, camera->z_far_dist);
+}
+
 Block GetBlock(Chunk *chunk, int x, int y, int z)
 {
     if (x < 0 || x >= Chunk_Size)
@@ -43,6 +85,8 @@ void InitWorld(World *world, u32 seed)
 {
     world->seed = seed;
 
+    world->camera.position.y = 140;
+
     world->chunks_by_position.allocator = heap;
     world->chunks_by_position.Compare = CompareChunkKeys;
     world->chunks_by_position.Hash = HashChunkKey;
@@ -68,17 +112,18 @@ void GenerateChunk(World *world, s16 x, s16 z)
         {
             for (int ix = 0; ix < Chunk_Size; ix += 1)
             {
-                float perlin_x = (x * Chunk_Size + ix) * 0.123;
+                float perlin_x = (x * Chunk_Size + ix) * 0.0123;
                 float perlin_y = iy * 0.123;
-                float perlin_z = (z * Chunk_Size + iz) * 0.123;
-                float perlin = PerlinNoise(perlin_x, perlin_y, perlin_z);
+                float perlin_z = (z * Chunk_Size + iz) * 0.0123;
+                float height = PerlinNoise(perlin_x, perlin_z);
+                height = (height + 1) * 0.5;
+                height = 128 + height * 10;
 
-                Block block = (Block)(RandomGetNext(&rng) % Block_Count);
                 int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
-                if (perlin < 0.2)
+                if (iy > height)
                     chunk->blocks[index] = Block_Air;
                 else
-                    chunk->blocks[index] = block;
+                    chunk->blocks[index] = Block_Stone;
             }
         }
     }
@@ -128,44 +173,16 @@ void MarkChunkDirty(World *world, Chunk *chunk)
     ArrayPush(&world->dirty_chunks, chunk);
 }
 
-void UpdateCamera(Camera *camera)
-{
-    bool moving = IsMouseButtonDown(MouseButton_Right);
-    SDL_SetRelativeMouseMode((SDL_bool)moving);
+// WorldParams SampleWorldParams(World *world, float x, float y, float z)
+// {
+//     RNG rng{};
+//     RandomSeed(&rng, world->seed);
 
-    if (moving)
-    {
-        Vec2f rotation = GetMouseDelta() * camera->rotation_speed;
+//     WorldParams result = {
+//         .squashing_factor = 0,
+//         .level_height = 0,
+//     };
+// }
 
-        camera->target_yaw += ToRads(rotation.x);
-        camera->target_pitch += ToRads(rotation.y);
-        camera->target_pitch = Clamp(camera->target_pitch, ToRads(-90), ToRads(90));
-
-        camera->current_yaw = Lerp(camera->current_yaw, camera->target_yaw, camera->rotation_smoothing);
-        camera->current_pitch = Lerp(camera->current_pitch, camera->target_pitch, camera->rotation_smoothing);
-
-        Mat4f rotation_mat = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
-
-        Vec3f movement{};
-        movement.x = (float)IsKeyDown(SDL_SCANCODE_D) - (float)IsKeyDown(SDL_SCANCODE_A);
-        movement.y = (float)(IsKeyDown(SDL_SCANCODE_E) || IsKeyDown(SDL_SCANCODE_SPACE)) - (float)(IsKeyDown(SDL_SCANCODE_Q) || IsKeyDown(SDL_SCANCODE_LCTRL));
-        movement.z = (float)IsKeyDown(SDL_SCANCODE_W) - (float)IsKeyDown(SDL_SCANCODE_S);
-        movement = Normalized(movement);
-        if (IsKeyDown(SDL_SCANCODE_LSHIFT))
-            movement *= camera->fast_speed * camera->speed_mult;
-        else
-            movement *= camera->base_speed * camera->speed_mult;
-
-        camera->position += RightVector(rotation_mat) * movement.x + UpVector(rotation_mat) * movement.y + ForwardVector(rotation_mat) * movement.z;
-    }
-
-    // Calculate camera matrices
-    int width, height;
-    SDL_GetWindowSizeInPixels(g_window, &width, &height);
-    float aspect = width / (float)height;
-
-    Mat4f rotation = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
-    camera->transform = Mat4fTranslate(camera->position) * rotation;
-    camera->view = Inverted(camera->transform);
-    camera->projection = Mat4fPerspectiveProjection(camera->fov_in_degrees, aspect, camera->z_near_dist, camera->z_far_dist);
-}
+// Block GetBlock(World *world, float x, float y, float z);
+// Block GetBlock(World *world, WorldParams params);

@@ -2,7 +2,7 @@ OPENGL_NAME=vox-gl
 VULKAN_NAME=vox-vk
 
 SRC_DIR=Source
-SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp renderer.cpp world.cpp shader_preprocessor.cpp
+SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp renderer.cpp world.cpp shader_preprocessor.cpp ui.cpp
 OPENGL_SRC_FILES=OpenGL/opengl.cpp OpenGL/render_pass.cpp OpenGL/copy_pass.cpp OpenGL/pipeline_state.cpp OpenGL/shader.cpp OpenGL/texture.cpp OpenGL/buffer.cpp
 
 INCLUDE_DIRS=Source /usr/include/SDL2 Third-Party/stb_image

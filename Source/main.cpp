@@ -3,6 +3,7 @@
 #include "Renderer.hpp"
 #include "World.hpp"
 #include "Input.hpp"
+#include "UI.hpp"
 
 #include <SDL.h>
 
@@ -15,6 +16,39 @@ Allocator temp = Allocator{&g_frame_arena, MemoryArenaAllocator};
 
 SDL_Window *g_window;
 World g_world;
+
+static GfxTexture GenerateNoiseTexture(String name, u32 seed, NoiseParams params, u32 size)
+{
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2D;
+    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+    desc.width = size;
+    desc.height = size;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    auto texture = GfxCreateTexture(name, desc);
+
+    RNG rng{};
+    RandomSeed(&rng, seed);
+
+    Slice<Vec2f> offsets = AllocSlice<Vec2f>(params.octaves, heap);
+    PerlinGenerateOffsets(&rng, &offsets);
+
+    u32 *pixels = Alloc<u32>(size * size, heap);
+    for (u32 y = 0; y < size; y += 1)
+    {
+        for (u32 x = 0; x < size; x += 1)
+        {
+            float noise = PerlinFractalNoise(params, offsets, (float)x, (float)y);
+            noise = (noise + 1) * 0.5;
+            u32 a = (u32)Clamp(noise * 255, 0, 255);
+            pixels[y * size + x] = (0xff << 24) | (a << 16) | (a << 8) | a;
+        }
+    }
+
+    GfxReplaceTextureRegion(&texture, {0,0,0}, {size, size, 1}, 0, 0, pixels);
+
+    return texture;
+}
 
 int main(int argc, char **args)
 {
@@ -44,6 +78,13 @@ int main(int argc, char **args)
         }
     }
 
+    NoiseParams noise_params{};
+    noise_params.scale = 0.05;
+    noise_params.octaves = 5;
+    noise_params.persistance = 0.5;
+    noise_params.max_amplitude = PerlinFractalMax(noise_params.octaves, noise_params.persistance);
+    auto noise_texture = GenerateNoiseTexture("Noise", 123456, noise_params, 256);
+
     bool quit = false;
     while(!quit)
     {
@@ -61,6 +102,9 @@ int main(int argc, char **args)
 
             HandleInputEvent(event);
         }
+
+        UIBeginFrame();
+        UIImage(10, 10, 256, 256, &noise_texture);
 
         UpdateCamera(&g_world.camera);
 

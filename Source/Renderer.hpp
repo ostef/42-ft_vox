@@ -118,6 +118,12 @@ struct Mesh
 
 void GenerateChunkMesh(Chunk *chunk);
 
+struct FrameRenderContext
+{
+    GfxCommandBuffer *cmd_buffer = null;
+    s64 frame_info_offset = -1;
+};
+
 void InitRenderer();
 void RenderGraphics(World *world);
 

@@ -165,3 +165,84 @@ float PerlinNoise(float x, float y, float z)
 
     return Lerp(y1, y2, w);
 }
+
+float PerlinFractalMax(int octaves, float persistance)
+{
+    float result = 0;
+    float amplitude = 1;
+
+    octaves = Min(octaves, Perlin_Fractal_Max_Octaves);
+    for (int i = 0; i < octaves; i += 1)
+    {
+        if (amplitude < Perlin_Fractal_Min_Amplitude)
+            break;
+
+        result += amplitude;
+        amplitude *= persistance;
+    }
+
+    return result;
+}
+
+void PerlinGenerateOffsets(RNG *rng, Slice<Vec2f> *offsets)
+{
+    foreach (i, *offsets)
+    {
+        offsets->data[i].x = RandomGetRangef(rng, -10000, 10000);
+        offsets->data[i].y = RandomGetRangef(rng, -10000, 10000);
+    }
+}
+
+void PerlinGenerateOffsets(RNG *rng, Slice<Vec3f> *offsets)
+{
+    foreach (i, *offsets)
+    {
+        offsets->data[i].x = RandomGetRangef(rng, -10000, 10000);
+        offsets->data[i].y = RandomGetRangef(rng, -10000, 10000);
+        offsets->data[i].z = RandomGetRangef(rng, -10000, 10000);
+    }
+}
+
+float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y)
+{
+    int octaves = Min(params.octaves, Perlin_Fractal_Max_Octaves);
+    Assert(offsets.count >= octaves);
+
+    float result = 0;
+    float amplitude = 1;
+    float frequency = params.scale;
+    for (int i = 0; i < octaves; i += 1)
+    {
+        if (amplitude < Perlin_Fractal_Min_Amplitude)
+            break;
+
+        result += amplitude * PerlinNoise(x * frequency + offsets.data[i].x, y * frequency + offsets.data[i].y);
+
+        amplitude *= params.persistance;
+        frequency *= params.lacunarity;
+    }
+
+    return result / params.max_amplitude;
+}
+
+float PerlinFractalNoise(NoiseParams params, Slice<Vec3f> offsets, float x, float y, float z)
+{
+    int octaves = Min(params.octaves, Perlin_Fractal_Max_Octaves);
+    Assert(offsets.count >= octaves);
+
+    float result = 0;
+    float amplitude = 1;
+    float frequency = params.scale;
+    for (int i = 0; i < octaves; i += 1)
+    {
+        if (amplitude < Perlin_Fractal_Min_Amplitude)
+            break;
+
+        result += amplitude * PerlinNoise(x * frequency + offsets.data[i].x, y * frequency + offsets.data[i].y, z * frequency + offsets.data[i].z);
+
+        amplitude *= params.persistance;
+        frequency *= params.lacunarity;
+    }
+
+    return result / params.max_amplitude;
+}

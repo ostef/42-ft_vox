@@ -16,7 +16,7 @@ struct ChunkKey
 
 struct Camera
 {
-    Vec3f position = {0,Chunk_Height,0};
+    Vec3f position = {};
     Quatf rotation = {};
 
     float rotation_speed = 0.2;
@@ -44,6 +44,7 @@ void UpdateCamera(Camera *camera);
 struct World
 {
     u32 seed;
+
     Camera camera {};
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
     Array<Chunk *> all_chunks = {};
@@ -56,6 +57,7 @@ enum Block : u8
     Block_Stone,
     Block_Dirt,
     Block_Grass,
+    Block_Water,
 
     Block_Count,
 };
@@ -65,6 +67,7 @@ static const char *Block_Names[] = {
     "stone",
     "dirt",
     "grass",
+    "water",
 };
 
 struct Chunk
@@ -89,3 +92,13 @@ void InitWorld(World *world, u32 seed);
 void GenerateChunk(World *world, s16 x, s16 z);
 
 void MarkChunkDirty(World *world, Chunk *chunk);
+
+struct WorldParams
+{
+    float squashing_factor = 0;
+    float level_height = 0;
+};
+
+WorldParams SampleWorldParams(World *world, float x, float y, float z);
+Block GetBlock(World *world, float x, float y, float z);
+Block GetBlock(World *world, WorldParams params);

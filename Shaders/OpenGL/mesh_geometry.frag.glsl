@@ -15,8 +15,9 @@ void main()
 {
     const vec3 light_dir = normalize(vec3(1,1,0.3));
 
-    float light_intensity = max(dot(normal, light_dir), 0);
+    float light_intensity = max(dot(normal, light_dir), 0.2);
     vec3 color = texture(block_atlas, vec3(tex_coords, block_face)).rgb;
+    color *= light_intensity;
     // vec3 color = vec3(tex_coords, 0);
 
     frag_color = vec4(color,1);

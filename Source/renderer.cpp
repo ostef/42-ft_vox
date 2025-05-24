@@ -1,11 +1,13 @@
 #include "Renderer.hpp"
 #include "World.hpp"
+#include "UI.hpp"
 
 #include <stb_image.h>
 
 static ShaderFile g_shader_files[] = {
     {.name="mesh_geometry"},
     {.name="post_processing"},
+    {.name="ui"},
 };
 
 static GfxAllocator g_frame_data_allocators[Gfx_Max_Frames_In_Flight];
@@ -756,6 +758,8 @@ static void RecreateRenderTargets()
 
 void RenderGraphics(World *world)
 {
+    FrameRenderContext ctx{};
+
     int window_w, window_h;
     SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
 
@@ -763,6 +767,7 @@ void RenderGraphics(World *world)
 
     GfxBeginFrame();
     GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Frame");
+    ctx.cmd_buffer = &cmd_buffer;
 
     ResetGfxAllocator(FrameDataGfxAllocator());
 
@@ -772,7 +777,7 @@ void RenderGraphics(World *world)
 
     ArrayClear(&world->dirty_chunks);
 
-    GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", &cmd_buffer);
+    GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", ctx.cmd_buffer);
     {
         UploadPendingChunkMeshes(&upload_pass);
     }
@@ -794,7 +799,7 @@ void RenderGraphics(World *world)
         .texture_block_size={Block_Texture_Size, Block_Texture_Size},
     };
     Assert(frame_info != null);
-    s64 frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), frame_info);
+    ctx.frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), frame_info);
 
     {
         GfxRenderPassDesc pass_desc{};
@@ -803,7 +808,7 @@ void RenderGraphics(World *world)
         GfxClearColor(&pass_desc, 0, {0.1,0.1,0.1,1});
         GfxClearDepth(&pass_desc, 1);
 
-        auto pass = GfxBeginRenderPass("Chunk", &cmd_buffer, pass_desc);
+        auto pass = GfxBeginRenderPass("Chunk", ctx.cmd_buffer, pass_desc);
         {
             GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
             GfxSetPipelineState(&pass, &g_chunk_pipeline);
@@ -811,7 +816,7 @@ void RenderGraphics(World *world)
             auto vertex_frame_info = GfxGetVertexStageBinding(&g_chunk_pipeline, "frame_info_buffer");
             auto fragment_block_atlas = GfxGetFragmentStageBinding(&g_chunk_pipeline, "block_atlas");
 
-            GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), frame_info_offset, sizeof(Std140FrameInfo));
+            GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), ctx.frame_info_offset, sizeof(Std140FrameInfo));
             GfxSetTexture(&pass, fragment_block_atlas, &g_block_atlas);
             GfxSetSamplerState(&pass, fragment_block_atlas, &g_block_sampler);
 
@@ -831,7 +836,7 @@ void RenderGraphics(World *world)
         GfxRenderPassDesc pass_desc{};
         GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
 
-        auto pass = GfxBeginRenderPass("Post Processing", &cmd_buffer, pass_desc);
+        auto pass = GfxBeginRenderPass("Post Processing", ctx.cmd_buffer, pass_desc);
         {
             GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
             GfxSetPipelineState(&pass, &g_post_processing_pipeline);
@@ -842,9 +847,11 @@ void RenderGraphics(World *world)
             GfxDrawPrimitives(&pass, 6, 1);
         }
         GfxEndRenderPass(&pass);
-
-        GfxExecuteCommandBuffer(&cmd_buffer);
-
-        GfxSubmitFrame();
     }
+
+    UIRender(&ctx);
+
+    GfxExecuteCommandBuffer(ctx.cmd_buffer);
+
+    GfxSubmitFrame();
 }

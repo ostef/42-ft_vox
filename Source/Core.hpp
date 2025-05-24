@@ -259,7 +259,7 @@ template<typename Tproc> Defer<Tproc> DeferProcedureCall(Tproc proc) { return De
 
 #define StaticArraySize(arr)(sizeof(arr) / sizeof(*(arr)))
 
-#define foreach(it_index, arr) for (s64 it_index = 0; it_index < arr.count; it_index += 1)
+#define foreach(it_index, arr) for (s64 it_index = 0; it_index < (arr).count; it_index += 1)
 
 template<typename T>
 struct Slice

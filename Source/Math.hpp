@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core.hpp"
+
 #include <math.h>
 #include <float.h>
 #include <limits.h>
@@ -25,12 +27,6 @@ void RandomSeed(RNG *rng, u32 seed);
 u32 RandomGetNext(RNG *rng);
 float RandomGetZeroToOnef(RNG *rng);
 float RandomGetRangef(RNG *rng, float min, float max);
-
-#define Perlin_Fractal_Max_Octaves 10
-#define Perlin_Fractal_Min_Amplitude 0.00001
-
-float PerlinNoise(float x, float y);
-float PerlinNoise(float x, float y, float z);
 
 struct Recti
 {
@@ -303,3 +299,24 @@ Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear, float zf
 Mat4f Mul(const Mat4f &a, const Mat4f &b);
 
 inline Mat4f operator *(const Mat4f &a, const Mat4f &b) { return Mul(a, b); }
+
+float PerlinNoise(float x, float y);
+float PerlinNoise(float x, float y, float z);
+
+#define Perlin_Fractal_Max_Octaves 10
+#define Perlin_Fractal_Min_Amplitude 0.00001
+
+struct NoiseParams
+{
+    float scale = 1.0;
+    int octaves = 1;
+    float persistance = 1.0; // By how much is amplitude multiplied for each octave (except the first)
+    float lacunarity = 0.1; // By how much is frequency multiplied for each octave (exept the first)
+    float max_amplitude = 1.0;
+};
+
+float PerlinFractalMax(int octaves, float persistance);
+void PerlinGenerateOffsets(RNG *rng, Slice<Vec2f> *offsets);
+void PerlinGenerateOffsets(RNG *rng, Slice<Vec3f> *offsets);
+float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y);
+float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y, float z);
