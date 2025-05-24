@@ -90,5 +90,5 @@ void CalculateCameraMatrices(Camera *camera)
     Mat4f rotation = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
     camera->transform = Mat4fTranslate(camera->position) * rotation;
     camera->view = Inverted(camera->transform);
-    camera->projection = Mat4fPerspectiveProjection(ToRads(camera->fov_in_degrees), aspect, camera->z_near_dist, camera->z_far_dist);
+    camera->projection = Mat4fPerspectiveProjection(camera->fov_in_degrees, aspect, camera->z_near_dist, camera->z_far_dist);
 }

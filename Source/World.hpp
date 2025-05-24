@@ -19,7 +19,7 @@ struct Camera
     Vec3f position = {};
     Quatf rotation = {};
 
-    float rotation_speed = 0.1;
+    float rotation_speed = 0.2;
     float rotation_smoothing = 0.3;
     float base_speed = 0.1;
     float speed_mult = 1.0;
