@@ -256,16 +256,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_West)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_East);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_West);
         v->position = position + Vec3f{0,0,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East);
+        v = PushVertex(vertices, block, block_height, BlockFace_West);
         v->position = position + Vec3f{0,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East);
+        v = PushVertex(vertices, block, block_height, BlockFace_West);
         v->position = position + Vec3f{0,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East);
+        v = PushVertex(vertices, block, block_height, BlockFace_West);
         v->position = position + Vec3f{0,0,0};
 
         ArrayPush(indices, index_start + 0);
@@ -325,16 +325,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_North)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_South);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_North);
         v->position = position + Vec3f{1,0,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South);
+        v = PushVertex(vertices, block, block_height, BlockFace_North);
         v->position = position + Vec3f{0,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South);
+        v = PushVertex(vertices, block, block_height, BlockFace_North);
         v->position = position + Vec3f{1,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South);
+        v = PushVertex(vertices, block, block_height, BlockFace_North);
         v->position = position + Vec3f{0,0,1};
 
         ArrayPush(indices, index_start + 0);
@@ -683,23 +683,11 @@ void RenderGraphics(World *world)
     Assert(frame_info != null);
     s64 frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), frame_info);
 
-    Std430ChunkInfo *chunk_infos = Alloc<Std430ChunkInfo>(world->all_chunks.count, FrameDataAllocator());
-    Assert(chunk_infos != null);
-    s64 chunk_offset = GetBufferOffset(FrameDataGfxAllocator(), chunk_infos);
-
-    foreach (i, world->all_chunks)
-    {
-        auto chunk = world->all_chunks[i];
-        chunk_infos[i] = {
-            .transform=Transposed(Mat4fTranslate(Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size})),
-        };
-    }
-
     {
         GfxRenderPassDesc pass_desc{};
         GfxSetColorAttachment(&pass_desc, 0, &g_main_color_texture);
         GfxSetDepthAttachment(&pass_desc, &g_main_depth_texture);
-        GfxClearColor(&pass_desc, 0, {0,0,0,1});
+        GfxClearColor(&pass_desc, 0, {0.1,0.1,0.1,1});
         GfxClearDepth(&pass_desc, 1);
 
         auto pass = GfxBeginRenderPass("Chunk", &cmd_buffer, pass_desc);
@@ -708,10 +696,8 @@ void RenderGraphics(World *world)
             GfxSetPipelineState(&pass, &g_chunk_pipeline);
 
             auto vertex_frame_info = GfxGetVertexStageBinding(&g_chunk_pipeline, "frame_info_buffer");
-            auto vertex_chunk_info = GfxGetVertexStageBinding(&g_chunk_pipeline, "chunk_info_buffer");
 
             GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), frame_info_offset, sizeof(Std140FrameInfo));
-            GfxSetBuffer(&pass, vertex_chunk_info, FrameDataBuffer(), chunk_offset, sizeof(Std430ChunkInfo) * world->all_chunks.count);
 
             foreach (i, world->all_chunks)
             {
@@ -728,7 +714,6 @@ void RenderGraphics(World *world)
     {
         GfxRenderPassDesc pass_desc{};
         GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
-        GfxClearColor(&pass_desc, 0, {0,0,0,1});
 
         auto pass = GfxBeginRenderPass("Post Processing", &cmd_buffer, pass_desc);
         {

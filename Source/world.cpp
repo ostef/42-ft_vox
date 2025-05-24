@@ -37,7 +37,9 @@ void InitWorld(World *world, u32 seed)
 void GenerateChunk(World *world, s16 x, s16 z)
 {
     RNG rng{};
-    RandomSeed(&rng, world->seed + 123 * x + 456 * z);
+    RandomSeed(&rng, world->seed);
+    float noise_x_offset = RandomGetRangef(&rng, -1000, 1000);
+    float noise_y_offset = RandomGetRangef(&rng, -1000, 1000);
 
     Chunk *chunk = Alloc<Chunk>(heap);
     chunk->x = x;
@@ -49,8 +51,13 @@ void GenerateChunk(World *world, s16 x, s16 z)
         {
             for (int ix = 0; ix < Chunk_Size; ix += 1)
             {
+                float perlin_x = (x * Chunk_Size + ix) * 0.123;
+                float perlin_y = iy * 0.123;
+                float perlin_z = (z * Chunk_Size + iz) * 0.123;
+                float perlin = PerlinNoise(perlin_x, perlin_y, perlin_z);
+
                 int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
-                if (RandomGetZeroToOnef(&rng) < 0.2)
+                if (perlin < 0.2)
                     chunk->blocks[index] = Block_Air;
                 else
                     chunk->blocks[index] = Block_Stone;

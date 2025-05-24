@@ -16,16 +16,10 @@ struct FrameInfo
     Camera camera;
 };
 
-struct ChunkInfo
-{
-    mat4 transform;
-};
-
 const vec2 Screen_Space_Position[6] = vec2[](
     vec2(0,0), vec2(1,1), vec2(0,1),
     vec2(0,0), vec2(1,0), vec2(1,1)
 );
-
 
 #define BlockFace uint
 #define BlockFace_East   0

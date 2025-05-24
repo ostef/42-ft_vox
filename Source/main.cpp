@@ -36,9 +36,9 @@ int main(int argc, char **args)
     InitRenderer();
 
     InitWorld(&g_world, 123456);
-    for (s16 x = 0; x < 1; x += 1)
+    for (s16 x = -2; x < 3; x += 1)
     {
-        for (s16 z = 0; z < 1; z += 1)
+        for (s16 z = -2; z < 3; z += 1)
         {
             GenerateChunk(&g_world, x, z);
         }

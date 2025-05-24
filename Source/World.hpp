@@ -16,7 +16,7 @@ struct ChunkKey
 
 struct Camera
 {
-    Vec3f position = {};
+    Vec3f position = {0,Chunk_Height,0};
     Quatf rotation = {};
 
     float rotation_speed = 0.2;

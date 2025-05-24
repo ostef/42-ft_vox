@@ -83,3 +83,85 @@ float PerlinNoise(float x, float y)
     return Lerp(x1, x2, v);
 }
 
+static inline float PerlinGradient (int hash, float x, float y, float z)
+{
+    switch (hash & 0xf)
+    {
+    case 0x0: return  x + y;
+    case 0x1: return -x + y;
+    case 0x2: return  x - y;
+    case 0x3: return -x - y;
+    case 0x4: return  x + z;
+    case 0x5: return -x + z;
+    case 0x6: return  x - z;
+    case 0x7: return -x - z;
+    case 0x8: return  y + z;
+    case 0x9: return -y + z;
+    case 0xa: return  y - z;
+    case 0xb: return -y - z;
+    case 0xc: return  y + x;
+    case 0xd: return -y + z;
+    case 0xe: return  y - x;
+    case 0xf: return -y - z;
+    default:  return 0;
+    }
+}
+
+float PerlinNoise(float x, float y, float z)
+{
+    float x_floor = floor(x);
+    float y_floor = floor(y);
+    float z_floor = floor(z);
+    int xi = ((int)x_floor) & 255;
+    int yi = ((int)y_floor) & 255;
+    int zi = ((int)z_floor) & 255;
+    float xf = x - x_floor;
+    float yf = y - y_floor;
+    float zf = z - z_floor;
+
+    float u = PerlinFade(xf);
+    float v = PerlinFade(yf);
+    float w = PerlinFade(zf);
+
+    const int *P = Perlin_Permutation_Table;
+    int aaa = P[P[P[xi    ] + yi    ] + zi    ];
+    int aba = P[P[P[xi    ] + yi + 1] + zi    ];
+    int aab = P[P[P[xi    ] + yi    ] + zi + 1];
+    int abb = P[P[P[xi    ] + yi + 1] + zi + 1];
+    int baa = P[P[P[xi + 1] + yi    ] + zi    ];
+    int bba = P[P[P[xi + 1] + yi + 1] + zi    ];
+    int bab = P[P[P[xi + 1] + yi    ] + zi + 1];
+    int bbb = P[P[P[xi + 1] + yi + 1] + zi + 1];
+
+    float x1, x2, y1, y2;
+
+    x1 = Lerp(
+        PerlinGradient (aaa, xf    , yf, zf),
+        PerlinGradient (baa, xf - 1, yf, zf),
+        u
+    );
+
+    x2 = Lerp(
+        PerlinGradient (aba, xf    , yf - 1, zf),
+        PerlinGradient (bba, xf - 1, yf - 1, zf),
+        u
+    );
+
+    y1 = Lerp(x1, x2, v);
+
+    x1 = Lerp(
+        PerlinGradient (aab, xf    , yf, zf - 1),
+        PerlinGradient (bab, xf - 1, yf, zf - 1),
+        u
+    );
+
+    x2 = Lerp(
+        PerlinGradient (abb, xf    , yf - 1, zf - 1),
+        PerlinGradient (bbb, xf - 1, yf - 1, zf - 1),
+        u
+    );
+
+    y2 = Lerp(x1, x2, v);
+
+    return Lerp(y1, y2, w);
+}

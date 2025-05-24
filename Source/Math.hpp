@@ -30,6 +30,7 @@ float RandomGetRangef(RNG *rng, float min, float max);
 #define Perlin_Fractal_Min_Amplitude 0.00001
 
 float PerlinNoise(float x, float y);
+float PerlinNoise(float x, float y, float z);
 
 struct Recti
 {
