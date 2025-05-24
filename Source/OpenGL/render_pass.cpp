@@ -414,7 +414,7 @@ GLenum GLFillMode(GfxFillMode mode)
     switch (mode)
     {
     case GfxFillMode_Fill:  return GL_FILL;
-    case GfxFillMode_Lines: return GL_LINES;
+    case GfxFillMode_Lines: return GL_LINE;
     }
     Panic("Invalid value for mode");
     return 0;
