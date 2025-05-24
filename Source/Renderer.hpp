@@ -72,7 +72,7 @@ s64 GetBufferOffset(GfxAllocator *allocator, void *ptr);
 Allocator MakeAllocator(GfxAllocator *allocator);
 void *GfxAllocatorFunc(AllocatorOp op, s64 size, void *ptr, void *data);
 
-enum BlockFace : u8
+enum BlockFace : uint
 {
     BlockFace_East,
     BlockFace_West,
@@ -95,7 +95,7 @@ struct BlockVertex
 {
     Vec3f position;
     float block_height;
-    BlockFace face;
+    BlockFace block_face;
     Block block;
 };
 

@@ -72,8 +72,14 @@ struct Chunk
     bool is_generated = false;
     Mesh mesh = {};
 
+    Chunk *east = null;
+    Chunk *west = null;
+    Chunk *north = null;
+    Chunk *south = null;
+
     Block blocks[Chunk_Height * Chunk_Size * Chunk_Size];
 };
 
 void InitWorld(World *world, u32 seed);
 void GenerateChunk(World *world, s16 x, s16 z);
+Block GetBlock(Chunk *chunk, int x, int y, int z);

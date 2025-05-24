@@ -23,6 +23,8 @@ struct RNG
 
 void RandomSeed(RNG *rng, u32 seed);
 u32 RandomGetNext(RNG *rng);
+float RandomGetZeroToOnef(RNG *rng);
+float RandomGetRangef(RNG *rng, float min, float max);
 
 #define Perlin_Fractal_Max_Octaves 10
 #define Perlin_Fractal_Min_Amplitude 0.00001

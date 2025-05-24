@@ -548,7 +548,7 @@ void HashMapInsert(HashMap<TKey, TValue> *map, TKey key, TValue value)
 }
 
 template<typename TKey, typename TValue>
-TValue *HashMapFind(HashMap<TKey, TValue> *map, TKey key)
+TValue *HashMapFindPtr(HashMap<TKey, TValue> *map, TKey key)
 {
     if (map->count <= 0)
         return null;
@@ -558,6 +558,16 @@ TValue *HashMapFind(HashMap<TKey, TValue> *map, TKey key)
         return &map->entries[probe.index].value;
 
     return null;
+}
+
+template<typename TKey, typename TValue>
+TValue HashMapFind(HashMap<TKey, TValue> *map, TKey key, TValue fallback = {})
+{
+    auto ptr = HashMapFindPtr(map, key);
+    if (!ptr)
+        return fallback;
+
+    return *ptr;
 }
 
 template<typename TKey, typename TValue>

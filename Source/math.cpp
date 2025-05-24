@@ -1,7 +1,7 @@
 #include "Core.hpp"
 #include "Math.hpp"
 
-#define Rand_Range 0x10000000
+#define Rand_Range (1 << 24) // Not using all the bits for stuff like float divides, because we start losing accuracy due to the max representable integer. Maybe could be smarter than this. Must be a power of two for MASK to work. The highest exactly-representable integer in float32 is 2**24.
 #define M 0x7fffffff
 
 void RandomSeed(RNG *rng, u32 seed)
@@ -20,6 +20,24 @@ u32 RandomGetNext(RNG *rng)
         rng->state += M;
 
     return rng->state;
+}
+
+float RandomGetZeroToOnef(RNG *rng)
+{
+    u32 r = RandomGetNext(rng) & (Rand_Range - 1);
+    float x = r / (float)Rand_Range;
+
+    return x;
+}
+
+float RandomGetRangef(RNG *rng, float min, float max)
+{
+    u32 r = RandomGetNext(rng) & (Rand_Range - 1);
+    float x = r / (float)Rand_Range;
+    x *= max - min;
+    x += min;
+
+    return x;
 }
 
 Vec2f Add(const Vec2f &a, const Vec2f &b)

@@ -237,6 +237,29 @@ enum GfxVertexFormat
     GfxVertexFormat_Float2,
     GfxVertexFormat_Float3,
     GfxVertexFormat_Float4,
+
+    GfxVertexFormat_Char2,
+    GfxVertexFormat_Char3,
+    GfxVertexFormat_Char4,
+    GfxVertexFormat_UChar2,
+    GfxVertexFormat_UChar3,
+    GfxVertexFormat_UChar4,
+
+    GfxVertexFormat_Short2,
+    GfxVertexFormat_Short3,
+    GfxVertexFormat_Short4,
+    GfxVertexFormat_UShort2,
+    GfxVertexFormat_UShort3,
+    GfxVertexFormat_UShort4,
+
+    GfxVertexFormat_Int,
+    GfxVertexFormat_Int2,
+    GfxVertexFormat_Int3,
+    GfxVertexFormat_Int4,
+    GfxVertexFormat_UInt,
+    GfxVertexFormat_UInt2,
+    GfxVertexFormat_UInt3,
+    GfxVertexFormat_UInt4,
 };
 
 struct GfxVertexInputDesc

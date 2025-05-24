@@ -12,6 +12,16 @@ static u64 HashChunkKey(ChunkKey key)
     return Fnv1aHash(&key, sizeof(ChunkKey));
 }
 
+Block GetBlock(Chunk *chunk, int x, int y, int z)
+{
+    Assert(x >= 0 && x < Chunk_Size, "Block chunk x coord out of bounds (%d)", x);
+    Assert(y >= 0 && y < Chunk_Height, "Block chunk y coord out of bounds (%d)", y);
+    Assert(z >= 0 && z < Chunk_Size, "Block chunk z coord out of bounds (%d)", z);
+
+    int index = y * Chunk_Size * Chunk_Size + z * Chunk_Size + x;
+    return chunk->blocks[index];
+}
+
 void InitWorld(World *world, u32 seed)
 {
     world->seed = seed;
@@ -26,18 +36,24 @@ void InitWorld(World *world, u32 seed)
 
 void GenerateChunk(World *world, s16 x, s16 z)
 {
+    RNG rng{};
+    RandomSeed(&rng, world->seed + 123 * x + 456 * z);
+
     Chunk *chunk = Alloc<Chunk>(heap);
     chunk->x = x;
     chunk->z = z;
 
-    for (int iz = 0; iz < Chunk_Height; iz += 1)
+    for (int iy = 0; iy < Chunk_Height; iy += 1)
     {
-        for (int iy = 0; iy < Chunk_Size; iy += 1)
+        for (int iz = 0; iz < Chunk_Size; iz += 1)
         {
             for (int ix = 0; ix < Chunk_Size; ix += 1)
             {
-                int index = iz * Chunk_Size * Chunk_Size + iy * Chunk_Size + ix;
-                chunk->blocks[index] = Block_Stone;
+                int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
+                if (RandomGetZeroToOnef(&rng) < 0.2)
+                    chunk->blocks[index] = Block_Air;
+                else
+                    chunk->blocks[index] = Block_Stone;
             }
         }
     }
@@ -46,6 +62,11 @@ void GenerateChunk(World *world, s16 x, s16 z)
     HashMapInsert(&world->chunks_by_position, {.x=x, .z=z}, chunk);
     ArrayPush(&world->all_chunks, chunk);
     ArrayPush(&world->dirty_chunks, chunk);
+
+    chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x+1), .z=z});
+    chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x-1), .z=z});
+    chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z+1)});
+    chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z-1)});
 }
 
 void UpdateCamera(Camera *camera)

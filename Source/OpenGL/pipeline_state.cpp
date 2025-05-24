@@ -112,6 +112,107 @@ void GLFormatSizeAndType(GfxVertexFormat format, int *size, GLenum *type)
         *size = 4;
         *type = GL_FLOAT;
         return;
+
+    case GfxVertexFormat_Char2:
+        *size = 2;
+        *type = GL_BYTE;
+        return;
+
+    case GfxVertexFormat_Char3:
+        *size = 3;
+        *type = GL_BYTE;
+        return;
+
+    case GfxVertexFormat_Char4:
+        *size = 4;
+        *type = GL_BYTE;
+        return;
+
+    case GfxVertexFormat_UChar2:
+        *size = 2;
+        *type = GL_UNSIGNED_BYTE;
+        return;
+
+    case GfxVertexFormat_UChar3:
+        *size = 3;
+        *type = GL_UNSIGNED_BYTE;
+        return;
+
+    case GfxVertexFormat_UChar4:
+        *size = 4;
+        *type = GL_UNSIGNED_BYTE;
+        return;
+
+    case GfxVertexFormat_Short2:
+        *size = 2;
+        *type = GL_SHORT;
+        return;
+
+    case GfxVertexFormat_Short3:
+        *size = 3;
+        *type = GL_SHORT;
+        return;
+
+    case GfxVertexFormat_Short4:
+        *size = 4;
+        *type = GL_SHORT;
+        return;
+
+    case GfxVertexFormat_UShort2:
+        *size = 2;
+        *type = GL_UNSIGNED_SHORT;
+        return;
+
+    case GfxVertexFormat_UShort3:
+        *size = 3;
+        *type = GL_UNSIGNED_SHORT;
+        return;
+
+    case GfxVertexFormat_UShort4:
+        *size = 4;
+        *type = GL_UNSIGNED_SHORT;
+        return;
+
+    case GfxVertexFormat_Int:
+        *size = 1;
+        *type = GL_INT;
+        return;
+
+    case GfxVertexFormat_Int2:
+        *size = 2;
+        *type = GL_INT;
+        return;
+
+    case GfxVertexFormat_Int3:
+        *size = 3;
+        *type = GL_INT;
+        return;
+
+    case GfxVertexFormat_Int4:
+        *size = 4;
+        *type = GL_INT;
+        return;
+
+    case GfxVertexFormat_UInt:
+        *size = 1;
+        *type = GL_UNSIGNED_INT;
+        return;
+
+    case GfxVertexFormat_UInt2:
+        *size = 2;
+        *type = GL_UNSIGNED_INT;
+        return;
+
+    case GfxVertexFormat_UInt3:
+        *size = 3;
+        *type = GL_UNSIGNED_INT;
+        return;
+
+    case GfxVertexFormat_UInt4:
+        *size = 4;
+        *type = GL_UNSIGNED_INT;
+        return;
+
     }
 
     *size = 0;
