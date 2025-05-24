@@ -397,6 +397,29 @@ Quatf &Quatf::operator -=(const Quatf &b) { *this = *this - b; return *this; }
 Quatf &Quatf::operator *=(float b) { *this = *this * b; return *this; }
 Quatf &Quatf::operator /=(float b) { *this = *this / b; return *this; }
 
+Mat4f Transposed(const Mat4f &m)
+{
+    Mat4f result;
+    result.r0c0 = m.r0c0;
+    result.r1c0 = m.r0c1;
+    result.r2c0 = m.r0c2;
+    result.r3c0 = m.r0c3;
+    result.r0c1 = m.r1c0;
+    result.r1c1 = m.r1c1;
+    result.r2c1 = m.r1c2;
+    result.r3c1 = m.r1c3;
+    result.r0c2 = m.r2c0;
+    result.r1c2 = m.r2c1;
+    result.r2c2 = m.r2c2;
+    result.r3c2 = m.r2c3;
+    result.r0c3 = m.r3c0;
+    result.r1c3 = m.r3c1;
+    result.r2c3 = m.r3c2;
+    result.r3c3 = m.r3c3;
+
+    return result;
+}
+
 Mat4f Inverted(const Mat4f &m)
 {
     Vec3f a = Vec3f{m.r0c0, m.r1c0, m.r2c0};
@@ -531,20 +554,51 @@ Mat4f Mat4fLookAt(const Vec3f &position, const Vec3f &target, const Vec3f &up)
     return result;
 }
 
-Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear)
+Mat4f Mat4fInfinitePerspectiveProjection(float fovy, float aspect, float znear)
 {
+    float view_z = 1;
     float t = tanf(ToRads(fovy) * 0.5f) * znear;
     float b = -t;
     float r = aspect * t;
     float l = -r;
     float n = znear;
 
-    return Mat4f{
-        2 * n / (r - l),               0, -(r + l) / (r - l),      0,
-                      0, 2 * n / (t - b), -(t + b) / (t - b),      0,
-                      0,               0,                 -1, -2 * n,
-                      0,               0,                 -1,      0
+    auto result = Mat4f{
+        2 * n / (r - l),               0, -view_z * (r + l) / (r - l),      0,
+                      0, 2 * n / (t - b), -view_z * (t + b) / (t - b),      0,
+                      0,               0,                      view_z, -2 * n,
+                      0,               0,                      view_z,      0
     };
+
+    // Depth range 0-1
+    result.r2c2 = result.r2c2 * 0.5 + result.r3c2 * 0.5;
+    result.r2c3 = result.r2c3 * 0.5 + result.r3c3 * 0.5;
+
+    return result;
+}
+
+Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear, float zfar)
+{
+    float view_z = 1;
+    float t = tanf(ToRads(fovy) * 0.5f) * znear;
+    float b = -t;
+    float r = aspect * t;
+    float l = -r;
+    float n = znear;
+    float f = zfar;
+
+    auto result = Mat4f{
+        2 * n / (r - l),               0, -view_z * (r + l) / (r - l),                      0,
+                      0, 2 * n / (t - b), -view_z * (t + b) / (t - b),                      0,
+                      0,               0,  view_z * (f + n) / (f - n), -(2 * f * n) / (f - n),
+                      0,               0,                      view_z,                      0
+    };
+
+    // Depth range 0-1
+    result.r2c2 = result.r2c2 * 0.5 + result.r3c2 * 0.5;
+    result.r2c3 = result.r2c3 * 0.5 + result.r3c3 * 0.5;
+
+    return result;
 }
 
 Mat4f Mul(const Mat4f &a, const Mat4f &b)

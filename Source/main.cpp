@@ -2,6 +2,7 @@
 #include "Graphics.hpp"
 #include "Renderer.hpp"
 #include "World.hpp"
+#include "Input.hpp"
 
 #include <SDL.h>
 
@@ -50,11 +51,15 @@ int main(int argc, char **args)
 
         ResetMemoryArena(&g_frame_arena);
 
+        UpdateInput();
+
         SDL_Event event = {};
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_QUIT)
                 quit = true;
+
+            HandleInputEvent(event);
         }
 
         UpdateCamera(&g_world.camera);

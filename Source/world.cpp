@@ -1,5 +1,6 @@
 #include "Core.hpp"
 #include "World.hpp"
+#include "Input.hpp"
 
 static bool CompareChunkKeys(ChunkKey a, ChunkKey b)
 {
@@ -45,4 +46,49 @@ void GenerateChunk(World *world, s16 x, s16 z)
     HashMapInsert(&world->chunks_by_position, {.x=x, .z=z}, chunk);
     ArrayPush(&world->all_chunks, chunk);
     ArrayPush(&world->dirty_chunks, chunk);
+}
+
+void UpdateCamera(Camera *camera)
+{
+    bool moving = IsMouseButtonDown(MouseButton_Right);
+    SDL_SetRelativeMouseMode((SDL_bool)moving);
+
+    if (moving)
+    {
+        if (IsKeyDown(SDL_SCANCODE_A))
+            camera->position.x -= camera->base_speed;
+        if (IsKeyDown(SDL_SCANCODE_D))
+            camera->position.x += camera->base_speed;
+        if (IsKeyDown(SDL_SCANCODE_E))
+            camera->position.y += camera->base_speed;
+        if (IsKeyDown(SDL_SCANCODE_Q))
+            camera->position.y -= camera->base_speed;
+        if (IsKeyDown(SDL_SCANCODE_W))
+            camera->position.z += camera->base_speed;
+        if (IsKeyDown(SDL_SCANCODE_S))
+            camera->position.z -= camera->base_speed;
+
+        Vec2f rotation = GetMouseDelta() * camera->rotation_speed;
+
+        camera->target_yaw += ToRads(rotation.x);
+        camera->target_pitch += ToRads(rotation.y);
+        camera->target_pitch = Clamp(camera->target_pitch, ToRads(-90), ToRads(90));
+
+        camera->current_yaw = Lerp(camera->current_yaw, camera->target_yaw, camera->rotation_smoothing);
+        camera->current_pitch = Lerp(camera->current_pitch, camera->target_pitch, camera->rotation_smoothing);
+    }
+
+    CalculateCameraMatrices(camera);
+}
+
+void CalculateCameraMatrices(Camera *camera)
+{
+    int width, height;
+    SDL_GetWindowSizeInPixels(g_window, &width, &height);
+    float aspect = width / (float)height;
+
+    Mat4f rotation = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
+    camera->transform = Mat4fTranslate(camera->position) * rotation;
+    camera->view = Inverted(camera->transform);
+    camera->projection = Mat4fPerspectiveProjection(ToRads(camera->fov_in_degrees), aspect, camera->z_near_dist, camera->z_far_dist);
 }

@@ -109,25 +109,6 @@ struct Mesh
 
 void GenerateChunkMesh(Chunk *chunk);
 
-struct Camera
-{
-    Vec3f position = {};
-    Quatf rotation = {};
-
-    float target_yaw = 0;
-    float current_yaw = 0;
-    float target_pitch = 0;
-    float current_pitch = 0;
-
-    float fov_in_degrees = 80;
-    float z_near_dist = 0.1;
-    float z_far_dist = 1000.0;
-
-    Mat4f transform = {};
-    Mat4f view = {};
-    Mat4f projection = {};
-};
-
 #pragma pack(push, 1)
 
 struct Std140Camera
@@ -155,9 +136,6 @@ struct Std430ChunkInfo
 };
 
 #pragma pack(pop)
-
-void UpdateCamera(Camera *camera);
-void CalculateCameraMatrices(Camera *camera);
 
 void InitRenderer();
 void RenderGraphics(World *world);

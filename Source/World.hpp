@@ -14,6 +14,33 @@ struct ChunkKey
     s16 x, z;
 };
 
+struct Camera
+{
+    Vec3f position = {};
+    Quatf rotation = {};
+
+    float rotation_speed = 0.1;
+    float rotation_smoothing = 0.3;
+    float base_speed = 0.1;
+    float speed_mult = 1.0;
+
+    float target_yaw = 0;
+    float current_yaw = 0;
+    float target_pitch = 0;
+    float current_pitch = 0;
+
+    float fov_in_degrees = 80;
+    float z_near_dist = 0.1;
+    float z_far_dist = 1000.0;
+
+    Mat4f transform = {};
+    Mat4f view = {};
+    Mat4f projection = {};
+};
+
+void UpdateCamera(Camera *camera);
+void CalculateCameraMatrices(Camera *camera);
+
 struct World
 {
     u32 seed;

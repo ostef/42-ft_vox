@@ -499,22 +499,6 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
     LogMessage(Log_Graphics, "Uploaded %d chunks (%ld pending)", num_uploaded, g_pending_chunk_mesh_uploads.count);
 }
 
-void UpdateCamera(Camera *camera)
-{
-    CalculateCameraMatrices(camera);
-}
-
-void CalculateCameraMatrices(Camera *camera)
-{
-    int width, height;
-    SDL_GetWindowSizeInPixels(g_window, &width, &height);
-    float aspect = width / (float)height;
-
-    camera->transform = Mat4fTranslate(camera->position); // * Mat4fFromQuatf(camera->rotation);
-    camera->view = Inverted(camera->transform);
-    camera->projection = Mat4fPerspectiveProjection(ToRads(camera->fov_in_degrees), aspect, camera->z_near_dist);
-}
-
 static GfxPipelineState g_post_processing_pipeline;
 static GfxPipelineState g_chunk_pipeline;
 static GfxTexture g_main_color_texture;
@@ -635,9 +619,9 @@ void RenderGraphics(World *world)
             .fov_in_degrees=world->camera.fov_in_degrees,
             .z_near_dist=world->camera.z_near_dist,
             .z_far_dist=world->camera.z_far_dist,
-            .transform=world->camera.transform,
-            .view=world->camera.view,
-            .projection=world->camera.projection,
+            .transform=Transposed(world->camera.transform),
+            .view=Transposed(world->camera.view),
+            .projection=Transposed(world->camera.projection),
         },
     };
     Assert(frame_info != null);
@@ -651,7 +635,7 @@ void RenderGraphics(World *world)
     {
         auto chunk = world->all_chunks[i];
         chunk_infos[i] = {
-            .transform=Mat4fTranslate(Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size}),
+            .transform=Transposed(Mat4fTranslate(Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size})),
         };
     }
 

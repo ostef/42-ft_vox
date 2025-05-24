@@ -284,6 +284,7 @@ Vec4f Normalized(const Vec4f &v, const Vec4f &fallback = Vec4f{});
 Vec3f Cross(const Vec3f &a, const Vec3f &b);
 Vec3f Reject(const Vec3f &a, const Vec3f &b);
 
+Mat4f Transposed(const Mat4f &m);
 Mat4f Inverted(const Mat4f &m);
 
 Vec3f RightVector(const Mat4f &m);
@@ -293,7 +294,8 @@ Vec3f ForwardVector(const Mat4f &m);
 Mat4f Mat4fTranslate(const Vec3f &translation);
 Mat4f Mat4fRotate(const Vec3f &axis, float angle);
 Mat4f Mat4fLookAt(const Vec3f &position, const Vec3f &target, const Vec3f &up);
-Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear);
+Mat4f Mat4fInfinitePerspectiveProjection(float fovy, float aspect, float znear);
+Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear, float zfar);
 
 Mat4f Mul(const Mat4f &a, const Mat4f &b);
 
