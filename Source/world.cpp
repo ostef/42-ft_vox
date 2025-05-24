@@ -71,9 +71,20 @@ void GenerateChunk(World *world, s16 x, s16 z)
     ArrayPush(&world->dirty_chunks, chunk);
 
     chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x+1), .z=z});
+    if (chunk->east)
+        chunk->east->west = chunk;
+
     chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x-1), .z=z});
+    if (chunk->west)
+        chunk->west->east = chunk;
+
     chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z+1)});
+    if (chunk->north)
+        chunk->north->south = chunk;
+
     chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z-1)});
+    if (chunk->south)
+        chunk->south->north = chunk;
 }
 
 void UpdateCamera(Camera *camera)
