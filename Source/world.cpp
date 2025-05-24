@@ -55,19 +55,6 @@ void UpdateCamera(Camera *camera)
 
     if (moving)
     {
-        if (IsKeyDown(SDL_SCANCODE_A))
-            camera->position.x -= camera->base_speed;
-        if (IsKeyDown(SDL_SCANCODE_D))
-            camera->position.x += camera->base_speed;
-        if (IsKeyDown(SDL_SCANCODE_E))
-            camera->position.y += camera->base_speed;
-        if (IsKeyDown(SDL_SCANCODE_Q))
-            camera->position.y -= camera->base_speed;
-        if (IsKeyDown(SDL_SCANCODE_W))
-            camera->position.z += camera->base_speed;
-        if (IsKeyDown(SDL_SCANCODE_S))
-            camera->position.z -= camera->base_speed;
-
         Vec2f rotation = GetMouseDelta() * camera->rotation_speed;
 
         camera->target_yaw += ToRads(rotation.x);
@@ -76,13 +63,23 @@ void UpdateCamera(Camera *camera)
 
         camera->current_yaw = Lerp(camera->current_yaw, camera->target_yaw, camera->rotation_smoothing);
         camera->current_pitch = Lerp(camera->current_pitch, camera->target_pitch, camera->rotation_smoothing);
+
+        Mat4f rotation_mat = Mat4fRotate({0,1,0}, camera->current_yaw) * Mat4fRotate({1,0,0}, camera->current_pitch);
+
+        Vec3f movement{};
+        movement.x = (float)IsKeyDown(SDL_SCANCODE_D) - (float)IsKeyDown(SDL_SCANCODE_A);
+        movement.y = (float)(IsKeyDown(SDL_SCANCODE_E) || IsKeyDown(SDL_SCANCODE_SPACE)) - (float)(IsKeyDown(SDL_SCANCODE_Q) || IsKeyDown(SDL_SCANCODE_LCTRL));
+        movement.z = (float)IsKeyDown(SDL_SCANCODE_W) - (float)IsKeyDown(SDL_SCANCODE_S);
+        movement = Normalized(movement);
+        if (IsKeyDown(SDL_SCANCODE_LSHIFT))
+            movement *= camera->fast_speed * camera->speed_mult;
+        else
+            movement *= camera->base_speed * camera->speed_mult;
+
+        camera->position += RightVector(rotation_mat) * movement.x + UpVector(rotation_mat) * movement.y + ForwardVector(rotation_mat) * movement.z;
     }
 
-    CalculateCameraMatrices(camera);
-}
-
-void CalculateCameraMatrices(Camera *camera)
-{
+    // Calculate camera matrices
     int width, height;
     SDL_GetWindowSizeInPixels(g_window, &width, &height);
     float aspect = width / (float)height;

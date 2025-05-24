@@ -557,7 +557,7 @@ Mat4f Mat4fLookAt(const Vec3f &position, const Vec3f &target, const Vec3f &up)
 Mat4f Mat4fInfinitePerspectiveProjection(float fovy, float aspect, float znear)
 {
     float view_z = 1;
-    float t = tanf(ToRads(fovy) * 0.5f) * znear;
+    float t = tanf(ToRads(fovy) * 0.5) * znear;
     float b = -t;
     float r = aspect * t;
     float l = -r;
@@ -580,7 +580,7 @@ Mat4f Mat4fInfinitePerspectiveProjection(float fovy, float aspect, float znear)
 Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear, float zfar)
 {
     float view_z = 1;
-    float t = tanf(ToRads(fovy) * 0.5f) * znear;
+    float t = tanf(ToRads(fovy) * 0.5) * znear;
     float b = -t;
     float r = aspect * t;
     float l = -r;

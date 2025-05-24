@@ -22,6 +22,7 @@ struct Camera
     float rotation_speed = 0.2;
     float rotation_smoothing = 0.3;
     float base_speed = 0.1;
+    float fast_speed = 1.0;
     float speed_mult = 1.0;
 
     float target_yaw = 0;
@@ -39,7 +40,6 @@ struct Camera
 };
 
 void UpdateCamera(Camera *camera);
-void CalculateCameraMatrices(Camera *camera);
 
 struct World
 {
