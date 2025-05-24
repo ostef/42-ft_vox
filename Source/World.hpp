@@ -56,6 +56,8 @@ enum Block : u8
     Block_Stone,
     Block_Dirt,
     Block_Grass,
+
+    Block_Count,
 };
 
 static const char *Block_Names[] = {
@@ -80,6 +82,10 @@ struct Chunk
     Block blocks[Chunk_Height * Chunk_Size * Chunk_Size];
 };
 
+Block GetBlock(Chunk *chunk, int x, int y, int z);
+Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z);
+
 void InitWorld(World *world, u32 seed);
 void GenerateChunk(World *world, s16 x, s16 z);
-Block GetBlock(Chunk *chunk, int x, int y, int z);
+
+void MarkChunkDirty(World *world, Chunk *chunk);

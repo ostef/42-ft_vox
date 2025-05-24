@@ -91,12 +91,21 @@ typedef u32 BlockFaceFlags;
 #define BlockFaceFlag_South  (1 << (u32)BlockFace_South)
 #define BlockFaceFlag_All    0x3f
 
+enum BlockCorner
+{
+    BlockCorner_TopLeft,
+    BlockCorner_TopRight,
+    BlockCorner_BottomLeft,
+    BlockCorner_BottomRight,
+};
+
 struct BlockVertex
 {
     Vec3f position;
     float block_height;
-    BlockFace block_face;
-    Block block;
+    int block;
+    int block_face;
+    int block_corner;
 };
 
 struct Mesh
@@ -108,6 +117,13 @@ struct Mesh
 };
 
 void GenerateChunkMesh(Chunk *chunk);
+
+void InitRenderer();
+void RenderGraphics(World *world);
+
+#define Block_Texture_Size 16
+#define Block_Atlas_Num_Blocks 16
+#define Block_Atlas_Size (Block_Texture_Size * Block_Atlas_Num_Blocks)
 
 #pragma pack(push, 1)
 
@@ -128,14 +144,8 @@ struct Std140FrameInfo
     float window_scale_factor;
     u32 _padding0[1] = {0};
     Std140Camera camera;
-};
-
-struct Std430ChunkInfo
-{
-    Mat4f transform;
+    Vec2f texture_atlas_size;
+    Vec2f texture_block_size;
 };
 
 #pragma pack(pop)
-
-void InitRenderer();
-void RenderGraphics(World *world);

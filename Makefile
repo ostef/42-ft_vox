@@ -5,7 +5,7 @@ SRC_DIR=Source
 SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp renderer.cpp world.cpp shader_preprocessor.cpp
 OPENGL_SRC_FILES=OpenGL/opengl.cpp OpenGL/render_pass.cpp OpenGL/copy_pass.cpp OpenGL/pipeline_state.cpp OpenGL/shader.cpp OpenGL/texture.cpp OpenGL/buffer.cpp
 
-INCLUDE_DIRS=Source /usr/include/SDL2
+INCLUDE_DIRS=Source /usr/include/SDL2 Third-Party/stb_image
 OPENGL_INCLUDE_DIRS=Third-Party/glad/include
 VULKAN_INCLUDE_DIRS=$(HOME)/vulkan/1.4.313.0/x86_64/include
 
@@ -13,8 +13,8 @@ OPENGL_OBJ_DIR=Obj/OpenGL
 VULKAN_OBJ_DIR=Obj/Vulkan
 
 OBJ_FILES=$(SRC_FILES:.cpp=.o)
-OPENGL_OBJ_FILES=$(OPENGL_SRC_FILES:.cpp=.o) glad.o
-VULKAN_OBJ_FILES=$(VULKAN_SRC_FILES:.cpp=.o)
+OPENGL_OBJ_FILES=$(OPENGL_SRC_FILES:.cpp=.o) glad.o stb_image.o
+VULKAN_OBJ_FILES=$(VULKAN_SRC_FILES:.cpp=.o) stb_image.o
 
 LIB_DIRS=
 VULKAN_LIB_DIRS=$(HOME)/vulkan/1.4.313.0/x86_64/lib
@@ -33,6 +33,9 @@ all: $(OPENGL_NAME)
 
 $(OPENGL_OBJ_DIR)/glad.o: Third-Party/glad/src/glad.c
 	$(CC) -g -IThird-Party/glad/include -c $< -o $@
+
+$(OPENGL_OBJ_DIR)/stb_image.o: Third-Party/stb_image/stb_image.c
+	$(CC) -g -IThird-Party/stb_image -c $< -o $@
 
 $(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(@D)

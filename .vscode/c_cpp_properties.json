@@ -6,9 +6,12 @@
                 "${workspaceFolder}/Source/",
                 "${workspaceFolder}/Third-Party/glad/include",
                 "/usr/include/SDL2",
-                "~/vulkan/1.4.313.0/x86_64/include"
+                "~/vulkan/1.4.313.0/x86_64/include",
+                "${workspaceFolder}/Third-Party/stb_image"
             ],
-            "defines": ["VOX_BACKEND_OPENGL"],
+            "defines": [
+                "VOX_BACKEND_OPENGL"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++14",

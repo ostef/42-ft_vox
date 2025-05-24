@@ -14,12 +14,29 @@ static u64 HashChunkKey(ChunkKey key)
 
 Block GetBlock(Chunk *chunk, int x, int y, int z)
 {
-    Assert(x >= 0 && x < Chunk_Size, "Block chunk x coord out of bounds (%d)", x);
-    Assert(y >= 0 && y < Chunk_Height, "Block chunk y coord out of bounds (%d)", y);
-    Assert(z >= 0 && z < Chunk_Size, "Block chunk z coord out of bounds (%d)", z);
+    if (x < 0 || x >= Chunk_Size)
+        return Block_Air;
+    if (z < 0 || z >= Chunk_Size)
+        return Block_Air;
+    if (y < 0 || y >= Chunk_Height)
+        return Block_Air;
 
     int index = y * Chunk_Size * Chunk_Size + z * Chunk_Size + x;
     return chunk->blocks[index];
+}
+
+Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
+{
+    if (x < 0)
+        return chunk->west ? GetBlockInNeighbors(chunk->west, Chunk_Size - x, y, z) : Block_Air;
+    else if (x >= Chunk_Size)
+        return chunk->east ? GetBlockInNeighbors(chunk->east, x - Chunk_Size, y, z) : Block_Air;
+    if (z < 0)
+        return chunk->south ? GetBlockInNeighbors(chunk->south, x, y, Chunk_Size - z) : Block_Air;
+    else if (z >= Chunk_Size)
+        return chunk->north ? GetBlockInNeighbors(chunk->north, x, y, z - Chunk_Size) : Block_Air;
+
+    return GetBlock(chunk, x, y, z);
 }
 
 void InitWorld(World *world, u32 seed)
@@ -56,11 +73,12 @@ void GenerateChunk(World *world, s16 x, s16 z)
                 float perlin_z = (z * Chunk_Size + iz) * 0.123;
                 float perlin = PerlinNoise(perlin_x, perlin_y, perlin_z);
 
+                Block block = (Block)(RandomGetNext(&rng) % Block_Count);
                 int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
                 if (perlin < 0.2)
                     chunk->blocks[index] = Block_Air;
                 else
-                    chunk->blocks[index] = Block_Stone;
+                    chunk->blocks[index] = block;
             }
         }
     }
@@ -72,19 +90,42 @@ void GenerateChunk(World *world, s16 x, s16 z)
 
     chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x+1), .z=z});
     if (chunk->east)
+    {
         chunk->east->west = chunk;
+        MarkChunkDirty(world, chunk->east);
+    }
 
     chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x-1), .z=z});
     if (chunk->west)
+    {
         chunk->west->east = chunk;
+        MarkChunkDirty(world, chunk->west);
+    }
 
     chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z+1)});
     if (chunk->north)
+    {
         chunk->north->south = chunk;
+        MarkChunkDirty(world, chunk->north);
+    }
 
     chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z-1)});
     if (chunk->south)
+    {
         chunk->south->north = chunk;
+        MarkChunkDirty(world, chunk->south);
+    }
+}
+
+void MarkChunkDirty(World *world, Chunk *chunk)
+{
+    foreach (i, world->dirty_chunks)
+    {
+        if (world->dirty_chunks[i] == chunk)
+            return;
+    }
+
+    ArrayPush(&world->dirty_chunks, chunk);
 }
 
 void UpdateCamera(Camera *camera)

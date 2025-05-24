@@ -25,13 +25,21 @@ GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc)
 
     switch (desc.type)
     {
-    default: Panic("Invalid texture type"); break;
+    default: Panic("Unhandled texture type"); break;
     case GfxTextureType_Texture2D:
         glTextureStorage2D(
             handle,
             desc.num_mipmap_levels,
             internal_format,
             desc.width, desc.height
+        );
+        break;
+    case GfxTextureType_Texture2DArray:
+        glTextureStorage3D(
+            handle,
+            desc.num_mipmap_levels,
+            internal_format,
+            desc.width, desc.height, desc.array_length
         );
         break;
     }
@@ -75,12 +83,23 @@ void GfxReplaceTextureRegion(GfxTexture *texture, Vec3u origin, Vec3u size, u32 
 
     switch (desc.type)
     {
+    default: Panic("Unhandled texture type"); break;
     case GfxTextureType_Texture2D:
         glTextureSubImage2D(
             texture->handle,
             mipmap_level,
             origin.x, origin.y,
             size.x, size.y,
+            gl_format, gl_type,
+            bytes
+        );
+        break;
+    case GfxTextureType_Texture2DArray:
+        glTextureSubImage3D(
+            texture->handle,
+            mipmap_level,
+            origin.x, origin.y, array_slice,
+            size.x, size.y, size.z,
             gl_format, gl_type,
             bytes
         );
@@ -165,6 +184,7 @@ GLenum GLTextureType(GfxTextureType type)
     {
     case GfxTextureType_Invalid: Panic("Invalid texture type"); break;
     case GfxTextureType_Texture2D: return GL_TEXTURE_2D;
+    case GfxTextureType_Texture2DArray: return GL_TEXTURE_2D_ARRAY;
     }
 
     Panic("Unhandled texture type");

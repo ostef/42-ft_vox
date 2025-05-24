@@ -103,6 +103,7 @@ enum GfxTextureType
 {
     GfxTextureType_Invalid,
     GfxTextureType_Texture2D,
+    GfxTextureType_Texture2DArray,
 };
 
 typedef uint32_t GfxTextureUsage;
@@ -119,6 +120,7 @@ struct GfxTextureDesc
     GfxCpuAccessFlags cpu_access = GfxCpuAccess_None;
     u32 width = 0;
     u32 height = 0;
+    u32 array_length = 1;
     u32 num_mipmap_levels = 1;
 };
 
