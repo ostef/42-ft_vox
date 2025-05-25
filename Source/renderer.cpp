@@ -821,7 +821,7 @@ void RenderGraphics(World *world)
         GfxRenderPassDesc pass_desc{};
         GfxSetColorAttachment(&pass_desc, 0, &g_main_color_texture);
         GfxSetDepthAttachment(&pass_desc, &g_main_depth_texture);
-        GfxClearColor(&pass_desc, 0, {0.1,0.1,0.1,1});
+        GfxClearColor(&pass_desc, 0, {0.106, 0.478, 0.82,1});
         GfxClearDepth(&pass_desc, 1);
 
         auto pass = GfxBeginRenderPass("Chunk", ctx.cmd_buffer, pass_desc);
