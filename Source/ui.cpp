@@ -1,5 +1,6 @@
 #include "UI.hpp"
 #include "Renderer.hpp"
+#include "Input.hpp"
 
 #include <stb_image.h>
 
@@ -21,11 +22,19 @@ struct UIRectElement
 
 #define UI_Font_Char_Width 6
 #define UI_Font_Char_Height 10
+#define UI_Elem_Padding 6
+#define UI_Button_Padding 3
 
 static const char UI_Font_Chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()[]{}<>/*:#%!?.,'\"@&$";
 
+static float g_ui_cursor_start_x;
+static Vec2f g_ui_cursor;
+static Vec2f g_ui_prev_elem_size;
+static bool g_ui_same_line;
+
 static Array<UIRectElement> g_ui_elements;
 static GfxTexture g_ui_font;
+static GfxTexture g_ui_white_texture;
 
 void UIBeginFrame()
 {
@@ -50,38 +59,214 @@ void UIBeginFrame()
         GfxReplaceTextureRegion(&g_ui_font, {0,0,0}, {(u32)width,(u32)height,1}, 0, 0, pixels);
     }
 
+    if (IsNull(&g_ui_white_texture))
+    {
+        GfxTextureDesc desc{};
+        desc.type = GfxTextureType_Texture2D;
+        desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+        desc.width = 1;
+        desc.height = 1;
+        desc.usage = GfxTextureUsage_ShaderRead;
+        g_ui_white_texture = GfxCreateTexture("UI White", desc);
+        Assert(!IsNull(&g_ui_white_texture));
+
+        const u32 pixels[1] = {0xffffffff};
+        GfxReplaceTextureRegion(&g_ui_white_texture, {0,0,0}, {1,1,1}, 0, 0, pixels);
+    }
+
     ArrayClear(&g_ui_elements);
+    g_ui_cursor = {};
+    g_ui_cursor_start_x = 0;
+    g_ui_prev_elem_size = {};
+    g_ui_same_line = false;
 }
 
-static void PushRect(Array<UIVertex> *vertices, UIRectElement elem)
+void UISetCursorStartX(float x)
 {
+    g_ui_cursor_start_x = x;
+}
+
+static Vec2f LayoutElem(Vec2f size)
+{
+    if (!g_ui_same_line)
+    {
+        g_ui_cursor.x = g_ui_cursor_start_x;
+        g_ui_cursor.y += g_ui_prev_elem_size.y + UI_Elem_Padding;
+    }
+
+    g_ui_cursor.x += UI_Elem_Padding;
+
+    Vec2f result = g_ui_cursor;
+
+    g_ui_cursor.x += size.x;
+
+    g_ui_prev_elem_size = size;
+    g_ui_same_line = false;
+
+    return result;
+}
+
+static Vec2f CalculateTextSize(String text)
+{
+    float w = 0;
+    float x = 0;
+    float y = 0;
+    for (int i = 0; i < text.length; i += 1)
+    {
+        x += UI_Font_Char_Width * 2.0;
+        if (text[i] == '\n')
+        {
+            x = 0;
+            y += UI_Font_Char_Height * 2.0;
+        }
+
+        w = Max(w, x);
+    }
+
+    return {w, y + UI_Font_Char_Height * 2.0f};
+}
+
+void UISameLine()
+{
+    g_ui_same_line = true;
+}
+
+void UIImage(GfxTexture *texture, Vec2f size, Vec2f uv0, Vec2f uv1)
+{
+    Vec2f position = LayoutElem(size);
+    UIRectElement elem = {
+        .position = position,
+        .size = size,
+        .texture = texture,
+        .color = {1,1,1,1},
+        .uv0 = uv0,
+        .uv1 = uv1,
+    };
+
+    ArrayPush(&g_ui_elements, elem);
+}
+
+void UIText(String text)
+{
+    Vec2f text_size = CalculateTextSize(text);
+    Vec2f position = LayoutElem(text_size);
+    UITextAt(position, text);
+}
+
+void UITextAt(Vec2f position, String text)
+{
+    float scale = 2;
+    float x_origin = position.x;
+    float y_origin = position.y;
+    float x = position.x;
+    float y = position.y;
+
+    for (int i = 0; i < text.length; i += 1)
+    {
+        int char_index = -1;
+        for (int j = 0; j < (int)StaticArraySize(UI_Font_Chars); j += 1)
+        {
+            if (UI_Font_Chars[j] == text[i])
+            {
+                char_index = j;
+                break;
+            }
+        }
+
+        if (char_index >= 0)
+        {
+            UIRectElement elem = {};
+            elem.position = {x,y};
+            elem.size = Vec2f{UI_Font_Char_Width, UI_Font_Char_Height} * scale;
+            elem.texture = &g_ui_font;
+            elem.color = {1,1,1,1};
+
+            int num_chars_x = GetDesc(&g_ui_font).width / UI_Font_Char_Width;
+            int num_chars_y = GetDesc(&g_ui_font).height / UI_Font_Char_Height;
+            elem.uv0.x = (char_index % num_chars_x) / (float)num_chars_x;
+            elem.uv0.y = (char_index / num_chars_x) / (float)num_chars_y;
+            elem.uv1.x = elem.uv0.x + 1 / (float)num_chars_x;
+            elem.uv1.y = elem.uv0.y + 1 / (float)num_chars_y;
+
+            ArrayPush(&g_ui_elements, elem);
+        }
+
+        if (text[i] == '\n')
+        {
+            x = x_origin;
+            y += UI_Font_Char_Height * scale;
+        }
+        else
+        {
+            x += UI_Font_Char_Width * scale;
+        }
+    }
+}
+
+bool UIButton(String id)
+{
+    String text = id;
+    for (int i = 0; i < text.length; i += 1)
+    {
+        if (text[i] == '#')
+        {
+            text.length = i;
+            break;
+        }
+    }
+
+    float padding = UI_Button_Padding;
+    Vec2f size = CalculateTextSize(text) + Vec2f{2 * padding, 2 * padding};
+
+    UIRectElement bg{};
+    bg.size = size;
+    bg.position = LayoutElem(size);
+    bg.color = {0, 0, 0, 1};
+
+    Vec2f mouse_pos = GetMousePosition();
+    bool hovered = mouse_pos.x > bg.position.x && mouse_pos.x < bg.position.x + bg.size.x
+        && mouse_pos.y > bg.position.y && mouse_pos.y < bg.position.y + bg.size.y;
+
+    if (hovered)
+        bg.color = {0.4, 0.4, 0.4, 1};
+
+    ArrayPush(&g_ui_elements, bg);
+
+    UITextAt(bg.position + Vec2f{padding, padding}, text);
+
+    return hovered && IsMouseButtonReleased(MouseButton_Left);
+}
+
+static void PushRect(Array<UIVertex> *vertices, UIRectElement elem, int window_w, int window_h)
+{
+    Vec2f p = {elem.position.x, window_h - elem.position.y};
     auto v = ArrayPush(vertices);
-    v->position = elem.position;
+    v->position = p;
     v->tex_coords = {elem.uv0.x, elem.uv0.y};
     v->color = elem.color;
 
     v = ArrayPush(vertices);
-    v->position = elem.position + Vec2f{elem.size.x, elem.size.y};
+    v->position = p + Vec2f{elem.size.x, -elem.size.y};
     v->tex_coords = {elem.uv1.x, elem.uv1.y};
     v->color = elem.color;
 
     v = ArrayPush(vertices);
-    v->position = elem.position + Vec2f{0, elem.size.y};
+    v->position = p + Vec2f{0, -elem.size.y};
     v->tex_coords = {elem.uv0.x, elem.uv1.y};
     v->color = elem.color;
 
     v = ArrayPush(vertices);
-    v->position = elem.position;
+    v->position = p;
     v->tex_coords = {elem.uv0.x, elem.uv0.y};
     v->color = elem.color;
 
     v = ArrayPush(vertices);
-    v->position = elem.position + Vec2f{elem.size.x, 0};
+    v->position = p + Vec2f{elem.size.x, 0};
     v->tex_coords = {elem.uv1.x, elem.uv0.y};
     v->color = elem.color;
 
     v = ArrayPush(vertices);
-    v->position = elem.position + Vec2f{elem.size.x, elem.size.y};
+    v->position = p + Vec2f{elem.size.x, -elem.size.y};
     v->tex_coords = {elem.uv1.x, elem.uv1.y};
     v->color = elem.color;
 }
@@ -92,6 +277,7 @@ static GfxSamplerState g_ui_texture_sampler;
 static void InitPipeline()
 {
     GfxPipelineStateDesc desc{};
+    desc.rasterizer_state.cull_face = GfxPolygonFace_None;
     desc.color_formats[0] = GfxGetSwapchainPixelFormat();
     desc.blend_states[0] = {.enabled=true};
     desc.vertex_shader = GetVertexShader("ui");
@@ -145,7 +331,7 @@ void UIRender(FrameRenderContext *ctx)
     vertices.allocated = g_ui_elements.count * 6;
     vertices.data = Alloc<UIVertex>(vertices.allocated, FrameDataAllocator());
     foreach (i, g_ui_elements)
-        PushRect(&vertices, g_ui_elements[i]);
+        PushRect(&vertices, g_ui_elements[i], window_w, window_h);
 
     s64 vertices_offset = GetBufferOffset(FrameDataGfxAllocator(), vertices.data);
 
@@ -170,71 +356,10 @@ void UIRender(FrameRenderContext *ctx)
         {
             auto elem = g_ui_elements[i];
 
-            GfxSetTexture(&pass, fragment_texture, elem.texture);
+            GfxSetTexture(&pass, fragment_texture, elem.texture ? elem.texture : &g_ui_white_texture);
 
             GfxDrawPrimitives(&pass, 6, 1, i * 6);
         }
     }
     GfxEndRenderPass(&pass);
-}
-
-void UIImage(float x, float y, float w, float h, GfxTexture *texture, Vec2f uv0, Vec2f uv1)
-{
-    UIRectElement elem = {
-        .position = {x, y},
-        .size = {w, h},
-        .texture = texture,
-        .color = {1,1,1,1},
-        .uv0 = uv0,
-        .uv1 = uv1,
-    };
-
-    ArrayPush(&g_ui_elements, elem);
-}
-
-void UIText(float x, float y, String text, float scale)
-{
-    float x_origin = x;
-    float y_origin = y;
-
-    for (int i = 0; i < text.length; i += 1)
-    {
-        int char_index = -1;
-        for (int j = 0; j < (int)StaticArraySize(UI_Font_Chars); j += 1)
-        {
-            if (UI_Font_Chars[j] == text[i])
-            {
-                char_index = j;
-                break;
-            }
-        }
-
-        if (char_index >= 0)
-        {
-            UIRectElement elem = {};
-            elem.position = {x,y};
-            elem.size = Vec2f{UI_Font_Char_Width, UI_Font_Char_Height} * scale;
-            elem.texture = &g_ui_font;
-            elem.color = {1,1,1,1};
-
-            int num_chars_x = GetDesc(&g_ui_font).width / UI_Font_Char_Width;
-            int num_chars_y = GetDesc(&g_ui_font).height / UI_Font_Char_Height;
-            elem.uv0.x = (char_index % num_chars_x) / (float)num_chars_x;
-            elem.uv0.y = (char_index / num_chars_x + 1) / (float)num_chars_y;
-            elem.uv1.x = elem.uv0.x + 1 / (float)num_chars_x;
-            elem.uv1.y = elem.uv0.y - 1 / (float)num_chars_y;
-
-            ArrayPush(&g_ui_elements, elem);
-        }
-
-        if (text[i] == '\n')
-        {
-            x = x_origin;
-            y += UI_Font_Char_Height * scale;
-        }
-        else
-        {
-            x += UI_Font_Char_Width * scale;
-        }
-    }
 }

@@ -53,6 +53,15 @@ struct World
     Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
 
+    NoiseParams density_params = {};
+    float density_y_scale = 1.0;
+    NoiseParams squashing_factor_params = {};
+    NoiseParams level_height_params = {};
+
+    Slice<Vec3f> density_offsets = {};
+    Slice<Vec2f> squashing_factor_offsets = {};
+    Slice<Vec2f> level_height_offsets = {};
+
     NoiseParams continentalness_params = {};
     NoiseParams erosion_params = {};
     NoiseParams peaks_and_valleys_params = {};
@@ -60,12 +69,6 @@ struct World
     Slice<Vec2f> continentalness_offsets = {};
     Slice<Vec2f> erosion_offsets = {};
     Slice<Vec2f> peaks_and_valleys_offsets = {};
-
-    NoiseParams squashing_factor_params = {};
-    NoiseParams level_height_params = {};
-
-    Slice<Vec2f> squashing_factor_offsets = {};
-    Slice<Vec2f> level_height_offsets = {};
 };
 
 enum Block : u8
@@ -112,13 +115,3 @@ void DestroyChunk(World *world, Chunk *chunk);
 void GenerateChunk(World *world, s16 x, s16 z);
 
 void MarkChunkDirty(World *world, Chunk *chunk);
-
-struct WorldParams
-{
-    float squashing_factor = 0;
-    float level_height = 0;
-};
-
-WorldParams SampleWorldParams(World *world, float x, float y, float z);
-Block GetBlock(World *world, float x, float y, float z);
-Block GetBlock(World *world, WorldParams params);

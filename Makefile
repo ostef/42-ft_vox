@@ -69,7 +69,7 @@ METAL_DEFINES=VOX_BACKEND_METAL _THREAD_SAFE
 
 CC=gcc
 CPP=g++
-CPP_FLAGS=-g -std=c++17 #-Wextra -Werror
+CPP_FLAGS=-g -std=c++17 -O3 #-Wextra -Werror
 
 all: $(NAME)
 

@@ -28,6 +28,14 @@ Vec2f GetMouseDelta()
     return g_mouse_delta;
 }
 
+Vec2f GetMousePosition()
+{
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+
+    return {(float)x, (float)y};
+}
+
 bool IsKeyDown(SDL_Scancode scancode)
 {
     return g_keyboard_state[scancode];

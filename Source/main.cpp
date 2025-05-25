@@ -84,7 +84,7 @@ int main(int argc, char **args)
         }
     }
 
-    auto noise_texture = GenerateNoiseTexture("Continentalness", 123456, g_world.continentalness_params, 256);
+    auto noise_texture = GenerateNoiseTexture("Continentalness", g_world.seed, g_world.continentalness_params, Chunk_Size * 2);
 
     bool quit = false;
     while(!quit)
@@ -108,27 +108,63 @@ int main(int argc, char **args)
         if (IsKeyPressed(SDL_SCANCODE_1))
         {
             base_height -= 5;
-            base_height = Clamp(base_height, 0, Chunk_Height - 1);
             regenerate = true;
         }
         if (IsKeyPressed(SDL_SCANCODE_2))
         {
             base_height += 5;
-            base_height = Clamp(base_height, 0, Chunk_Height - 1);
             regenerate = true;
         }
         if (IsKeyPressed(SDL_SCANCODE_3))
         {
             squashing_factor -= 0.1;
-            squashing_factor = Clamp(squashing_factor, 0, 1);
             regenerate = true;
         }
         if (IsKeyPressed(SDL_SCANCODE_4))
         {
             squashing_factor += 0.1;
-            squashing_factor = Clamp(squashing_factor, 0, 1);
             regenerate = true;
         }
+
+        UIBeginFrame();
+
+        UIButton("<#prev_noise");
+        UISameLine();
+        UIText("Continentalness");
+        UISameLine();
+        UIButton(">#next_noise");
+
+        UIImage(&noise_texture, {200, 200});
+
+        if (UIButton("-#squashing_factor-"))
+        {
+            squashing_factor -= 0.1;
+            regenerate = true;
+        }
+        UISameLine();
+        if (UIButton("+#squashing_factor+"))
+        {
+            squashing_factor += 0.1;
+            regenerate = true;
+        }
+        UISameLine();
+        squashing_factor = Clamp(squashing_factor, 0, 1);
+        UIText(TPrintf("squashing_factor: %.2f", squashing_factor));
+
+        if (UIButton("-#base_height-"))
+        {
+            base_height -= 5;
+            regenerate = true;
+        }
+        UISameLine();
+        if (UIButton("+#base_height+"))
+        {
+            base_height += 5;
+            regenerate = true;
+        }
+        UISameLine();
+        base_height = Clamp(base_height, 0, Chunk_Height - 1);
+        UIText(TPrintf("base_height: %.2f", base_height));
 
         if (regenerate)
         {
@@ -147,10 +183,6 @@ int main(int argc, char **args)
                 }
             }
         }
-
-        UIBeginFrame();
-        UIImage(10, 10, 256, 256, &noise_texture);
-        UIText(10, 300, TPrintf("squashing_factor: %.2f\nbase_height: %.2f", squashing_factor, base_height));
 
         UpdateCamera(&g_world.camera);
 

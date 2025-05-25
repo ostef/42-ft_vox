@@ -17,6 +17,7 @@ bool IsMouseButtonPressed(MouseButton button);
 bool IsMouseButtonReleased(MouseButton button);
 
 Vec2f GetMouseDelta();
+Vec2f GetMousePosition();
 
 bool IsKeyDown(SDL_Scancode scancode);
 bool IsKeyPressed(SDL_Scancode scancode);

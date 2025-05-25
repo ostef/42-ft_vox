@@ -320,13 +320,13 @@ struct NoiseParams
 {
     float scale = 1.0;
     int octaves = 1;
-    float persistance = 1.0; // By how much is amplitude multiplied for each octave (except the first)
-    float lacunarity = 0.1; // By how much is frequency multiplied for each octave (exept the first)
-    float max_amplitude = 1.0;
+    float persistance = 0.5; // By how much is amplitude multiplied for each octave (except the first)
+    float lacunarity = 2.0; // By how much is frequency multiplied for each octave (exept the first)
+    float max_amplitude = 1.0; // Calculate using PerlinFractalMax
 };
 
 float PerlinFractalMax(int octaves, float persistance);
 void PerlinGenerateOffsets(RNG *rng, Slice<Vec2f> *offsets);
 void PerlinGenerateOffsets(RNG *rng, Slice<Vec3f> *offsets);
 float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y);
-float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y, float z);
+float PerlinFractalNoise(NoiseParams params, Slice<Vec3f> offsets, float x, float y, float z);

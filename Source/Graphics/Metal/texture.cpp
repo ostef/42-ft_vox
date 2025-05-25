@@ -12,7 +12,7 @@ GfxTextureDesc GetDesc(GfxTexture *texture)
 
 GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc) { return {}; }
 void GfxDestroyTexture(GfxTexture *texture) {}
-void GfxReplaceTextureRegion(GfxTexture *texture, Vec3u origin, Vec3u size, u32 mipmap_level, u32 array_slice, void *bytes) {}
+void GfxReplaceTextureRegion(GfxTexture *texture, Vec3u origin, Vec3u size, u32 mipmap_level, u32 array_slice, const void *bytes) {}
 
 bool IsNull(GfxSamplerState *sampler)
 {
