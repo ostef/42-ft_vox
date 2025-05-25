@@ -86,11 +86,21 @@ Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
 
 void SetDefaultNoiseParams(World *world)
 {
+    world->density_params = {};
+    world->density_params.scale = 0.06;
+    world->density_params.octaves = 3;
+
+    world->continentalness_params = {};
     world->continentalness_params.scale = 0.01;
     world->continentalness_params.octaves = 3;
 
-    world->density_params.scale = 0.06;
-    world->density_params.octaves = 3;
+    world->erosion_params = {};
+    world->erosion_params.scale = 0.005;
+    world->erosion_params.octaves = 3;
+
+    world->peaks_and_valleys_params = {};
+    world->peaks_and_valleys_params.scale = 0.05;
+    world->peaks_and_valleys_params.octaves = 3;
 }
 
 void InitWorld(World *world, u32 seed)
@@ -111,25 +121,20 @@ void InitWorld(World *world, u32 seed)
 
     world->density_params.max_amplitude = PerlinFractalMax(world->density_params.octaves, world->density_params.persistance);
 
-    world->squashing_factor_params.max_amplitude = PerlinFractalMax(world->squashing_factor_params.octaves, world->squashing_factor_params.persistance);
-
     world->density_offsets = AllocSlice<Vec3f>(world->density_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->density_offsets);
 
-    world->squashing_factor_offsets = AllocSlice<Vec2f>(world->squashing_factor_params.octaves, heap);
-    PerlinGenerateOffsets(&rng, &world->squashing_factor_offsets);
-
     world->continentalness_params.max_amplitude = PerlinFractalMax(world->continentalness_params.octaves, world->continentalness_params.persistance);
-
-    world->erosion_params.max_amplitude = PerlinFractalMax(world->erosion_params.octaves, world->erosion_params.persistance);
-
-    world->peaks_and_valleys_params.max_amplitude = PerlinFractalMax(world->peaks_and_valleys_params.octaves, world->peaks_and_valleys_params.persistance);
 
     world->continentalness_offsets = AllocSlice<Vec2f>(world->continentalness_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->continentalness_offsets);
 
+    world->erosion_params.max_amplitude = PerlinFractalMax(world->erosion_params.octaves, world->erosion_params.persistance);
+
     world->erosion_offsets = AllocSlice<Vec2f>(world->erosion_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->erosion_offsets);
+
+    world->peaks_and_valleys_params.max_amplitude = PerlinFractalMax(world->peaks_and_valleys_params.octaves, world->peaks_and_valleys_params.persistance);
 
     world->peaks_and_valleys_offsets = AllocSlice<Vec2f>(world->peaks_and_valleys_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->peaks_and_valleys_offsets);
@@ -217,6 +222,10 @@ void GenerateChunk(World *world, s16 x, s16 z)
                 float perlin_z = (z * Chunk_Size + iz);
 
                 float continentalness = PerlinFractalNoise(world->continentalness_params, world->continentalness_offsets, perlin_x, perlin_z);
+                float erosion = PerlinFractalNoise(world->erosion_params, world->erosion_offsets, perlin_x, perlin_z);
+                erosion = (erosion + 1) * 0.5;
+                continentalness *= 1 - erosion;
+
                 float base_height = 127 + continentalness * 20;
 
                 float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y, perlin_z);

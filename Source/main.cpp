@@ -19,7 +19,6 @@ World g_world;
 
 static const char *Noise_Param_Names[] = {
     "Density",
-    "Squashing Factor",
     "Continentalness",
     "Erosion",
     "Peaks And Valleys",
@@ -43,13 +42,20 @@ static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
     {
         for (u32 x = 0; x < size; x += 1)
         {
+            float ix = x - size * 0.5;
+            float iy = y - size * 0.5;
+
             float noise;
             if (param == 0)
-                noise = PerlinFractalNoise(all_params[param], world->density_offsets, (float)x, 0, (float)y);
+                noise = PerlinFractalNoise(all_params[param], world->density_offsets, ix, 0, iy);
             else
-                noise = PerlinFractalNoise(all_params[param], (&world->squashing_factor_offsets)[param - 1], (float)x, (float)y);
+                noise = PerlinFractalNoise(all_params[param], (&world->continentalness_offsets)[param - 1], ix, iy);
 
-            noise = (noise + 1) * 0.5;
+            if (param == 3)
+                noise = Abs(noise);
+            else
+                noise = (noise + 1) * 0.5;
+
             u32 a = (u32)Clamp(noise * 255, 0, 255);
             pixels[y * size + x] = (0xff << 24) | (a << 16) | (a << 8) | a;
         }
@@ -87,9 +93,10 @@ int main(int argc, char **args)
     InitWorld(&g_world, 123456);
     defer(DestroyWorld(&g_world));
 
-    for (s16 x = -2; x < 3; x += 1)
+    int N = 3;
+    for (s16 x = -N; x <= N; x += 1)
     {
-        for (s16 z = -2; z < 3; z += 1)
+        for (s16 z = -N; z <= N; z += 1)
         {
             GenerateChunk(&g_world, x, z);
         }
@@ -97,7 +104,7 @@ int main(int argc, char **args)
 
     GfxTexture noise_texture = {};
 
-    int current_params = 0;
+    int current_params = 1;
     bool quit = false;
     while(!quit)
     {
@@ -158,25 +165,17 @@ int main(int argc, char **args)
             regenerate_noise = true;
         }
 
-        if (regenerate_noise || IsNull(&noise_texture))
-        {
-            if (!IsNull(&noise_texture))
-                GfxDestroyTexture(&noise_texture);
-
-            noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * 2);
-        }
-
         UIImage(&noise_texture, {200, 200});
 
-        if (UIButton("-#squashing_factor-"))
+        if (UIButton("-#squashing_factor"))
         {
-            squashing_factor -= 0.1;
+            squashing_factor -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
             regenerate = true;
         }
         UISameLine();
-        if (UIButton("+#squashing_factor+"))
+        if (UIButton("+#squashing_factor"))
         {
-            squashing_factor += 0.1;
+            squashing_factor += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
             regenerate = true;
         }
         UISameLine();
@@ -192,13 +191,21 @@ int main(int argc, char **args)
 
             g_world.camera = camera;
 
-            for (s16 x = -2; x < 3; x += 1)
+            for (s16 x = -N; x <= N; x += 1)
             {
-                for (s16 z = -2; z < 3; z += 1)
+                for (s16 z = -N; z <= N; z += 1)
                 {
                     GenerateChunk(&g_world, x, z);
                 }
             }
+        }
+
+        if (regenerate_noise || IsNull(&noise_texture))
+        {
+            if (!IsNull(&noise_texture))
+                GfxDestroyTexture(&noise_texture);
+
+            noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * N * 2);
         }
 
         UpdateCamera(&g_world.camera);

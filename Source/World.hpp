@@ -53,13 +53,11 @@ struct World
     Array<Chunk *> dirty_chunks = {};
 
     NoiseParams density_params = {};
-    NoiseParams squashing_factor_params = {};
     NoiseParams continentalness_params = {};
     NoiseParams erosion_params = {};
     NoiseParams peaks_and_valleys_params = {};
 
     Slice<Vec3f> density_offsets = {};
-    Slice<Vec2f> squashing_factor_offsets = {};
     Slice<Vec2f> continentalness_offsets = {};
     Slice<Vec2f> erosion_offsets = {};
     Slice<Vec2f> peaks_and_valleys_offsets = {};
@@ -67,7 +65,7 @@ struct World
 
 static inline Slice<NoiseParams> GetAllNoiseParams(World *world)
 {
-    return {.count=5, .data=&world->density_params};
+    return {.count=4, .data=&world->density_params};
 }
 
 enum Block : u8
