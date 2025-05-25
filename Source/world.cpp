@@ -81,12 +81,19 @@ Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
     return GetBlock(chunk, x, y, z);
 }
 
+void SetDefaultNoiseParams(World *world)
+{
+    world->continentalness_params.scale = 0.01;
+    world->continentalness_params.octaves = 3;
+
+    world->density_params.scale = 0.06;
+    world->density_params.octaves = 3;
+}
+
 void InitWorld(World *world, u32 seed)
 {
     RNG rng{};
     RandomSeed(&rng, seed);
-
-    *world = {};
 
     world->seed = seed;
 
@@ -99,25 +106,9 @@ void InitWorld(World *world, u32 seed)
     world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
 
-    world->density_params = {
-        .scale=0.0612,
-        .octaves=4,
-        .lacunarity=1.5
-    };
     world->density_params.max_amplitude = PerlinFractalMax(world->density_params.octaves, world->density_params.persistance);
-    world->density_y_scale = 0.65;
 
-    world->squashing_factor_params = {
-        .scale=10,
-        .octaves=5,
-    };
     world->squashing_factor_params.max_amplitude = PerlinFractalMax(world->squashing_factor_params.octaves, world->squashing_factor_params.persistance);
-
-    world->level_height_params = {
-        .scale=1.2347,
-        .octaves=5,
-    };
-    world->level_height_params.max_amplitude = PerlinFractalMax(world->level_height_params.octaves, world->level_height_params.persistance);
 
     world->density_offsets = AllocSlice<Vec3f>(world->density_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->density_offsets);
@@ -125,25 +116,10 @@ void InitWorld(World *world, u32 seed)
     world->squashing_factor_offsets = AllocSlice<Vec2f>(world->squashing_factor_params.octaves, heap);
     PerlinGenerateOffsets(&rng, &world->squashing_factor_offsets);
 
-    world->level_height_offsets = AllocSlice<Vec2f>(world->level_height_params.octaves, heap);
-    PerlinGenerateOffsets(&rng, &world->level_height_offsets);
-
-    world->continentalness_params = {
-        .scale=10,
-        .octaves=5,
-    };
     world->continentalness_params.max_amplitude = PerlinFractalMax(world->continentalness_params.octaves, world->continentalness_params.persistance);
 
-    world->erosion_params = {
-        .scale=10,
-        .octaves=5,
-    };
     world->erosion_params.max_amplitude = PerlinFractalMax(world->erosion_params.octaves, world->erosion_params.persistance);
 
-    world->peaks_and_valleys_params = {
-        .scale=10,
-        .octaves=5,
-    };
     world->peaks_and_valleys_params.max_amplitude = PerlinFractalMax(world->peaks_and_valleys_params.octaves, world->peaks_and_valleys_params.persistance);
 
     world->continentalness_offsets = AllocSlice<Vec2f>(world->continentalness_params.octaves, heap);
@@ -164,8 +140,6 @@ void DestroyWorld(World *world)
     HashMapFree(&world->chunks_by_position);
     ArrayFree(&world->all_chunks);
     ArrayFree(&world->dirty_chunks);
-    Free(world->squashing_factor_offsets.data, heap);
-    Free(world->level_height_offsets.data, heap);
 }
 
 void DestroyChunk(World *world, Chunk *chunk)
@@ -219,7 +193,6 @@ void DestroyChunk(World *world, Chunk *chunk)
     Free(chunk, heap);
 }
 
-float base_height = 127;
 float squashing_factor = 1.0;
 
 void GenerateChunk(World *world, s16 x, s16 z)
@@ -240,10 +213,11 @@ void GenerateChunk(World *world, s16 x, s16 z)
                 float perlin_y = iy;
                 float perlin_z = (z * Chunk_Size + iz);
 
-                float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y * world->density_y_scale - base_height, perlin_z);
-                density *= (1 - squashing_factor) * 3;
-                // float density_bias = (base_height - iy) * squashing_factor * 0.15;
-                float density_bias = (base_height - iy) * 0.05;
+                float continentalness = PerlinFractalNoise(world->continentalness_params, world->continentalness_offsets, perlin_x, perlin_z);
+                float base_height = 127 + continentalness * 20;
+
+                float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y, perlin_z);
+                float density_bias = (base_height - iy) * squashing_factor * squashing_factor;
 
                 if (density + density_bias > 0)
                     chunk->blocks[index] = Block_Stone;

@@ -17,8 +17,19 @@ Allocator temp = Allocator{&g_frame_arena, MemoryArenaAllocator};
 SDL_Window *g_window;
 World g_world;
 
-static GfxTexture GenerateNoiseTexture(String name, u32 seed, NoiseParams params, u32 size)
+static const char *Noise_Param_Names[] = {
+    "Density",
+    "Squashing Factor",
+    "Continentalness",
+    "Erosion",
+    "Peaks And Valleys",
+};
+
+static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
 {
+    String name = Noise_Param_Names[param];
+    auto all_params = GetAllNoiseParams(world);
+
     GfxTextureDesc desc{};
     desc.type = GfxTextureType_Texture2D;
     desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
@@ -27,18 +38,17 @@ static GfxTexture GenerateNoiseTexture(String name, u32 seed, NoiseParams params
     desc.usage = GfxTextureUsage_ShaderRead;
     auto texture = GfxCreateTexture(name, desc);
 
-    RNG rng{};
-    RandomSeed(&rng, seed);
-
-    Slice<Vec2f> offsets = AllocSlice<Vec2f>(params.octaves, heap);
-    PerlinGenerateOffsets(&rng, &offsets);
-
     u32 *pixels = Alloc<u32>(size * size, heap);
     for (u32 y = 0; y < size; y += 1)
     {
         for (u32 x = 0; x < size; x += 1)
         {
-            float noise = PerlinFractalNoise(params, offsets, (float)x, (float)y);
+            float noise;
+            if (param == 0)
+                noise = PerlinFractalNoise(all_params[param], world->density_offsets, (float)x, 0, (float)y);
+            else
+                noise = PerlinFractalNoise(all_params[param], (&world->squashing_factor_offsets)[param - 1], (float)x, (float)y);
+
             noise = (noise + 1) * 0.5;
             u32 a = (u32)Clamp(noise * 255, 0, 255);
             pixels[y * size + x] = (0xff << 24) | (a << 16) | (a << 8) | a;
@@ -73,6 +83,7 @@ int main(int argc, char **args)
     LoadAllShaders();
     InitRenderer();
 
+    SetDefaultNoiseParams(&g_world);
     InitWorld(&g_world, 123456);
     defer(DestroyWorld(&g_world));
 
@@ -84,8 +95,9 @@ int main(int argc, char **args)
         }
     }
 
-    auto noise_texture = GenerateNoiseTexture("Continentalness", g_world.seed, g_world.continentalness_params, Chunk_Size * 2);
+    GfxTexture noise_texture = {};
 
+    int current_params = 0;
     bool quit = false;
     while(!quit)
     {
@@ -105,34 +117,54 @@ int main(int argc, char **args)
         }
 
         bool regenerate = false;
-        if (IsKeyPressed(SDL_SCANCODE_1))
-        {
-            base_height -= 5;
-            regenerate = true;
-        }
-        if (IsKeyPressed(SDL_SCANCODE_2))
-        {
-            base_height += 5;
-            regenerate = true;
-        }
-        if (IsKeyPressed(SDL_SCANCODE_3))
-        {
-            squashing_factor -= 0.1;
-            regenerate = true;
-        }
-        if (IsKeyPressed(SDL_SCANCODE_4))
-        {
-            squashing_factor += 0.1;
-            regenerate = true;
-        }
 
         UIBeginFrame();
 
-        UIButton("<#prev_noise");
+        auto all_noise_params = GetAllNoiseParams(&g_world);
+
+        bool regenerate_noise = false;
+        if (UIButton("Reset to default"))
+        {
+            SetDefaultNoiseParams(&g_world);
+            regenerate_noise = true;
+            regenerate = true;
+        }
+
+        if (UIButton("<#prev_noise"))
+        {
+            current_params -= 1;
+            if (current_params < 0)
+                current_params = all_noise_params.count - 1;
+            regenerate_noise = true;
+        }
+
         UISameLine();
-        UIText("Continentalness");
+
+        if (UIButton(">#next_noise"))
+        {
+            current_params += 1;
+            if (current_params >= all_noise_params.count)
+                current_params = 0;
+            regenerate_noise = true;
+        }
+
         UISameLine();
-        UIButton(">#next_noise");
+
+        UIText(Noise_Param_Names[current_params]);
+
+        if (UINoiseParams(Noise_Param_Names[current_params], &all_noise_params[current_params]))
+        {
+            regenerate = true;
+            regenerate_noise = true;
+        }
+
+        if (regenerate_noise || IsNull(&noise_texture))
+        {
+            if (!IsNull(&noise_texture))
+                GfxDestroyTexture(&noise_texture);
+
+            noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * 2);
+        }
 
         UIImage(&noise_texture, {200, 200});
 
@@ -151,27 +183,12 @@ int main(int argc, char **args)
         squashing_factor = Clamp(squashing_factor, 0, 1);
         UIText(TPrintf("squashing_factor: %.2f", squashing_factor));
 
-        if (UIButton("-#base_height-"))
-        {
-            base_height -= 5;
-            regenerate = true;
-        }
-        UISameLine();
-        if (UIButton("+#base_height+"))
-        {
-            base_height += 5;
-            regenerate = true;
-        }
-        UISameLine();
-        base_height = Clamp(base_height, 0, Chunk_Height - 1);
-        UIText(TPrintf("base_height: %.2f", base_height));
-
         if (regenerate)
         {
             Camera camera = g_world.camera;
 
             DestroyWorld(&g_world);
-            InitWorld(&g_world, 123456);
+            InitWorld(&g_world, g_world.seed);
 
             g_world.camera = camera;
 

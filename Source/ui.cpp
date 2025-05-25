@@ -237,6 +237,31 @@ bool UIButton(String id)
     return hovered && IsMouseButtonReleased(MouseButton_Left);
 }
 
+bool UINoiseParams(String id, NoiseParams *params)
+{
+    NoiseParams old = *params;
+    if (UIButton("-#scale"))
+        params->scale -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+    UISameLine();
+    if (UIButton("+#scale"))
+        params->scale += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+    UISameLine();
+    UIText(TPrintf("scale: %.2f", params->scale));
+
+    if (UIButton("-#octaves"))
+        params->octaves -= 1;
+    UISameLine();
+    if (UIButton("+#octaves"))
+        params->octaves += 1;
+    params->octaves = Clamp(params->octaves, 1, Perlin_Fractal_Max_Octaves);
+    UISameLine();
+    UIText(TPrintf("octaves: %d", params->octaves));
+
+    params->max_amplitude = PerlinFractalMax(params->octaves, params->persistance);
+
+    return memcmp(&old, params, sizeof(NoiseParams)) != 0;
+}
+
 static void PushRect(Array<UIVertex> *vertices, UIRectElement elem, int window_w, int window_h)
 {
     Vec2f p = {elem.position.x, window_h - elem.position.y};

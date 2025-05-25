@@ -7,7 +7,6 @@
 #define Chunk_Height 256
 #define Chunk_Size 16
 
-extern float base_height;
 extern float squashing_factor;
 
 struct Chunk;
@@ -54,22 +53,22 @@ struct World
     Array<Chunk *> dirty_chunks = {};
 
     NoiseParams density_params = {};
-    float density_y_scale = 1.0;
     NoiseParams squashing_factor_params = {};
-    NoiseParams level_height_params = {};
-
-    Slice<Vec3f> density_offsets = {};
-    Slice<Vec2f> squashing_factor_offsets = {};
-    Slice<Vec2f> level_height_offsets = {};
-
     NoiseParams continentalness_params = {};
     NoiseParams erosion_params = {};
     NoiseParams peaks_and_valleys_params = {};
 
+    Slice<Vec3f> density_offsets = {};
+    Slice<Vec2f> squashing_factor_offsets = {};
     Slice<Vec2f> continentalness_offsets = {};
     Slice<Vec2f> erosion_offsets = {};
     Slice<Vec2f> peaks_and_valleys_offsets = {};
 };
+
+static inline Slice<NoiseParams> GetAllNoiseParams(World *world)
+{
+    return {.count=5, .data=&world->density_params};
+}
 
 enum Block : u8
 {
@@ -108,6 +107,7 @@ struct Chunk
 Block GetBlock(Chunk *chunk, int x, int y, int z);
 Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z);
 
+void SetDefaultNoiseParams(World *world);
 void InitWorld(World *world, u32 seed);
 void DestroyWorld(World *world);
 void DestroyChunk(World *world, Chunk *chunk);
