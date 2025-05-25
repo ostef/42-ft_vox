@@ -27,6 +27,7 @@ struct UIRectElement
 
 static const char UI_Font_Chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()[]{}<>/*:#%!?.,'\"@&$";
 
+static bool g_ui_has_mouse;
 static float g_ui_cursor_start_x;
 static Vec2f g_ui_cursor;
 static Vec2f g_ui_prev_elem_size;
@@ -79,6 +80,11 @@ void UIBeginFrame()
     g_ui_cursor_start_x = 0;
     g_ui_prev_elem_size = {};
     g_ui_same_line = false;
+}
+
+void UISetMouse(bool has_mouse)
+{
+    g_ui_has_mouse = has_mouse;
 }
 
 void UISetCursorStartX(float x)
@@ -224,7 +230,8 @@ bool UIButton(String id)
     bg.color = {0, 0, 0, 1};
 
     Vec2f mouse_pos = GetMousePosition();
-    bool hovered = mouse_pos.x > bg.position.x && mouse_pos.x < bg.position.x + bg.size.x
+    bool hovered = g_ui_has_mouse
+        && mouse_pos.x > bg.position.x && mouse_pos.x < bg.position.x + bg.size.x
         && mouse_pos.y > bg.position.y && mouse_pos.y < bg.position.y + bg.size.y;
 
     if (hovered)
@@ -246,7 +253,7 @@ bool UINoiseParams(String id, NoiseParams *params)
     if (UIButton("+#scale"))
         params->scale += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
     UISameLine();
-    UIText(TPrintf("scale: %.2f", params->scale));
+    UIText(TPrintf("scale: %.3f", params->scale));
 
     if (UIButton("-#octaves"))
         params->octaves -= 1;

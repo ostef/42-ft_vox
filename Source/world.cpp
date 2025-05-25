@@ -1,6 +1,7 @@
 #include "Core.hpp"
 #include "World.hpp"
 #include "Input.hpp"
+#include "UI.hpp"
 
 static bool CompareChunkKeys(ChunkKey a, ChunkKey b)
 {
@@ -16,6 +17,8 @@ void UpdateCamera(Camera *camera)
 {
     bool moving = IsMouseButtonDown(MouseButton_Right);
     SDL_SetRelativeMouseMode((SDL_bool)moving);
+
+    UISetMouse(!moving);
 
     if (moving)
     {
