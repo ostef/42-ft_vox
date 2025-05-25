@@ -25,6 +25,7 @@ enum GfxBackend
     GfxBackend_Invalid,
     GfxBackend_OpenGL,
     GfxBackend_Vulkan,
+    GfxBackend_Metal,
 };
 
 enum GfxPixelFormat
@@ -530,6 +531,8 @@ void GfxCopyBufferToBuffer(
 #include "Vulkan/Vulkan.hpp"
 #elif defined(VOX_BACKEND_OPENGL)
 #include "OpenGL/OpenGL.hpp"
+#elif defined(VOX_BACKEND_METAL)
+#include "Metal/Metal.hpp"
 #else
 #error "No graphics backend"
 #endif

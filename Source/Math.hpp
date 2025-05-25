@@ -8,8 +8,18 @@
 
 #define Pi 3.14159265358979323846
 
-#define Min(a, b) (((a) < (b)) ? (a) : (b))
-#define Max(a, b) (((a) > (b)) ? (a) : (b))
+template<typename T>
+T Min(T a, T b)
+{
+    return a < b ? a : b;
+}
+
+template<typename T>
+T Max(T a, T b)
+{
+    return a > b ? a : b;
+}
+
 #define Clamp(x, a, b) (((x) < (a)) ? (a) : ((x) > (b)) ? (b) : (x))
 #define Abs(x) (((x) < 0) ? -(x) : (x))
 #define ToRads(x) ((x) * Pi / 180)

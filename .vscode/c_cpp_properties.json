@@ -12,10 +12,27 @@
             "defines": [
                 "VOX_BACKEND_OPENGL"
             ],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        },
+        {
+            "name": "MacOS",
+            "includePath": [
+                "${workspaceFolder}/Source/",
+                "${workspaceFolder}/Third-Party/stb_image",
+                "${workspaceFolder}/Third-Party/metal-cpp",
+                "/opt/homebrew/include",
+                "/opt/homebrew/include/SDL2"
+            ],
+            "defines": [
+                "VOX_BACKEND_METAL"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
-            "cppStandard": "c++14",
-            "intelliSenseMode": "linux-clang-x64"
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
         }
     ],
     "version": 4

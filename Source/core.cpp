@@ -1,7 +1,7 @@
 #include "Core.hpp"
 #include "Math.hpp"
 
-#ifdef VOX_PLATFORM_LINUX
+#if defined(VOX_PLATFORM_POSIX)
 #include <unistd.h>
 #endif
 

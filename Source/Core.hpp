@@ -11,8 +11,10 @@
 #define VOX_PLATFORM_WINDOWS
 #elif defined(__linux__)
 #define VOX_PLATFORM_LINUX
+#define VOX_PLATFORM_POSIX
 #elif defined(__MACH__)
 #define VOX_PLATFORM_MACOS
+#define VOX_PLATFORM_POSIX
 #else
 #error "Unsupported platform"
 #endif
@@ -39,8 +41,9 @@ static char g_assert_failure_message_buffer[10000]; // @Todo @ThreadSafety
 #if defined(VOX_PLATFORM_WINDOWS)
 #define DebugBreak() __debugbreak()
 #elif defined(VOX_PLATFORM_LINUX)
-#define DebugBreak() asm("int3")
+#define DebugBreak() asm volatile("int3")
 #elif defined(VOX_PLATFORM_MACOS)
+#define DebugBreak() __asm__ volatile(".inst 0xe7f001f0")
 #endif
 
 #define Panic(...) do { \
