@@ -34,6 +34,10 @@ METAL_SRC_FILES=Graphics/Metal/metal.cpp \
 	Graphics/Metal/texture.cpp \
 	Graphics/Metal/buffer.cpp
 
+
+DEP_DIR=.deps
+DEP_FILES=$(SRC_FILES:%.cpp=$(DEP_DIR)/%.d) $(OPENGL_SRC_FILES:%.cpp=$(DEP_DIR)/%.d) $(METAL_SRC_FILES:%.cpp=$(DEP_DIR)/%.d)
+
 INCLUDE_DIRS=Source Third-Party/stb_image
 
 ifeq ($(UNAME), Linux)
@@ -70,8 +74,22 @@ METAL_DEFINES=VOX_BACKEND_METAL _THREAD_SAFE
 CC=gcc
 CPP=g++
 CPP_FLAGS=-g -std=c++17 -O3 #-Wextra -Werror
+DEP_FLAGS=-MT $@ -MMD -MP -MF $(DEP_DIR)/$*.d
 
 all: $(NAME)
+
+$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEP_DIR)/%.d | $(DEP_DIR)
+	@mkdir -p $(@D)
+	$(CPP) $(CPP_FLAGS) $(DEP_FLAGS) $(addprefix -D,$(OPENGL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(OPENGL_INCLUDE_DIRS)) -c $< -o $@
+
+$(VULKAN_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
+	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(VULKAN_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(VULKAN_INCLUDE_DIRS)) -c $< -o $@
+
+$(METAL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
+	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(METAL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(METAL_INCLUDE_DIRS)) -c $< -o $@
 
 $(OPENGL_OBJ_DIR)/glad.o: Third-Party/glad/src/glad.c
 	$(CC) -g -IThird-Party/glad/include -c $< -o $@
@@ -82,18 +100,6 @@ $(OPENGL_OBJ_DIR)/stb_image.o: Third-Party/stb_image/stb_image.c
 $(METAL_OBJ_DIR)/stb_image.o: Third-Party/stb_image/stb_image.c
 	$(CC) -g -IThird-Party/stb_image -c $< -o $@
 
-$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(@D)
-	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(OPENGL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(OPENGL_INCLUDE_DIRS)) -c $< -o $@
-
-$(VULKAN_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(@D)
-	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(VULKAN_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(VULKAN_INCLUDE_DIRS)) -c $< -o $@
-
-$(METAL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(@D)
-	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(METAL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(METAL_INCLUDE_DIRS)) -c $< -o $@
-
 $(OPENGL_NAME): $(addprefix $(OPENGL_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(OPENGL_OBJ_DIR)/,$(OPENGL_OBJ_FILES))
 	$(CPP) $(addprefix $(OPENGL_OBJ_DIR)/,$(OBJ_FILES) $(OPENGL_OBJ_FILES)) $(addprefix -L,$(LIB_DIRS) $(OPENGL_LIB_DIRS)) $(addprefix -l,$(LIBS) $(OPENGL_LIBS)) -o $@
 
@@ -102,6 +108,12 @@ $(VULKAN_NAME): $(addprefix $(VULKAN_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(VULKA
 
 $(METAL_NAME): $(addprefix $(METAL_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(METAL_OBJ_DIR)/,$(METAL_OBJ_FILES))
 	$(CPP) $(addprefix $(METAL_OBJ_DIR)/,$(OBJ_FILES) $(METAL_OBJ_FILES)) $(addprefix -L,$(LIB_DIRS) $(METAL_LIB_DIRS)) $(addprefix -l,$(LIBS) $(METAL_LIBS)) $(addprefix -framework ,$(METAL_FRAMEWORKS)) -o $@
+
+$(DEP_DIR)/%.d: ; @mkdir -p $(@D)
+
+$(DEP_FILES):
+
+include $(wildcard $(DEP_FILES))
 
 clean:
 	rm -rf $(OPENGL_OBJ_DIR)
