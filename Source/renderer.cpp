@@ -654,7 +654,7 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
 
     FlushGfxAllocator(gfx_allocator);
 
-    LogMessage(Log_Graphics, "Uploaded %d chunks (%ld pending)", num_uploaded, g_pending_chunk_mesh_uploads.count);
+    LogMessage(Log_Graphics, "Uploaded %d chunks (%lld pending)", num_uploaded, g_pending_chunk_mesh_uploads.count);
 }
 
 static GfxPipelineState g_post_processing_pipeline;
