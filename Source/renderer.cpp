@@ -34,7 +34,7 @@ static Result<LoadedImage> LoadImage(String filename)
     result.height = height;
     if (result.width != Block_Texture_Size || result.height != Block_Texture_Size)
     {
-        LogError(Log_Graphics, "Block texture '%.*s' has size %dx%d but we expected %dx%d", filename.length, filename.data, width, height, Block_Texture_Size, Block_Texture_Size);
+        LogError(Log_Graphics, "Block texture '%.*s' has size %dx%d but we expected %dx%d", FSTR(filename), width, height, Block_Texture_Size, Block_Texture_Size);
 
         return Result<LoadedImage>::Bad(false);
     }
@@ -62,13 +62,13 @@ static void LoadBlockAtlasTexture()
     for (int i = 1; i < Block_Count; i += 1)
     {
         String name = Block_Names[i];
-        String filename = TPrintf("Data/Blocks/%.*s.png", name.length, name.data);
-        String filename_top = TPrintf("Data/Blocks/%.*s_top.png", name.length, name.data);
-        String filename_bottom = TPrintf("Data/Blocks/%.*s_bottom.png", name.length, name.data);
-        String filename_east = TPrintf("Data/Blocks/%.*s_east.png", name.length, name.data);
-        String filename_west = TPrintf("Data/Blocks/%.*s_west.png", name.length, name.data);
-        String filename_north = TPrintf("Data/Blocks/%.*s_north.png", name.length, name.data);
-        String filename_south = TPrintf("Data/Blocks/%.*s_south.png", name.length, name.data);
+        String filename = TPrintf("Data/Blocks/%.*s.png", FSTR(name));
+        String filename_top = TPrintf("Data/Blocks/%.*s_top.png", FSTR(name));
+        String filename_bottom = TPrintf("Data/Blocks/%.*s_bottom.png", FSTR(name));
+        String filename_east = TPrintf("Data/Blocks/%.*s_east.png", FSTR(name));
+        String filename_west = TPrintf("Data/Blocks/%.*s_west.png", FSTR(name));
+        String filename_north = TPrintf("Data/Blocks/%.*s_north.png", FSTR(name));
+        String filename_south = TPrintf("Data/Blocks/%.*s_south.png", FSTR(name));
 
         auto image = LoadImage(filename);
         auto image_top = LoadImage(filename_top);
@@ -79,7 +79,7 @@ static void LoadBlockAtlasTexture()
         auto image_south = LoadImage(filename_south);
         if (!image_top.ok || !image_bottom.ok || !image_east.ok || !image_west.ok || !image_north.ok || !image_south.ok)
         {
-            Assert(image.ok, "Could not load base image for block '%.*s'", name.length, name.data);
+            Assert(image.ok, "Could not load base image for block '%.*s'", FSTR(name));
         }
 
         uint block_x = ((i - 1) % Block_Atlas_Num_Blocks) * Block_Texture_Size;
@@ -200,7 +200,7 @@ static bool LoadShader(ShaderFile *file)
 
         if (!has_vertex && !has_fragment)
         {
-            LogError(Log_Shaders, "Could not find any shader file for shader '%.*s'", file->name.length, file->name.data);
+            LogError(Log_Shaders, "Could not find any shader file for shader '%.*s'", FSTR(file->name));
             return false;
         }
     }
@@ -236,12 +236,12 @@ GfxShader *GetVertexShader(String name)
             if (g_shader_files[i].stages & GfxPipelineStageFlag_Vertex)
                 return &g_shader_files[i].vertex_shader;
 
-            Panic("Shader '%.*s' has no vertex stage", name.length, name.data);
+            Panic("Shader '%.*s' has no vertex stage", FSTR(name));
             return null;
         }
     }
 
-    Panic("No shader named '%.*s'", name.length, name.data);
+    Panic("No shader named '%.*s'", FSTR(name));
     return null;
 }
 
@@ -254,12 +254,12 @@ GfxShader *GetFragmentShader(String name)
             if (g_shader_files[i].stages & GfxPipelineStageFlag_Fragment)
                 return &g_shader_files[i].fragment_shader;
 
-            Panic("Shader '%.*s' has no fragment stage", name.length, name.data);
+            Panic("Shader '%.*s' has no fragment stage", FSTR(name));
             return null;
         }
     }
 
-    Panic("No shader named '%.*s'", name.length, name.data);
+    Panic("No shader named '%.*s'", FSTR(name));
     return null;
 }
 

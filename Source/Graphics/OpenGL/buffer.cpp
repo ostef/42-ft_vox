@@ -17,7 +17,7 @@ GfxBuffer GfxCreateBuffer(String name, GfxBufferDesc desc)
     GLuint handle = 0;
     glCreateBuffers(1, &handle);
 
-    String buffer_name = TPrintf("Buffer '%.*s'", name.length, name.data);
+    String buffer_name = TPrintf("Buffer '%.*s'", FSTR(name));
     glObjectLabel(GL_BUFFER, handle, buffer_name.length, buffer_name.data);
 
     GLenum access_flags = 0;

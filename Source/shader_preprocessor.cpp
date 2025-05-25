@@ -136,7 +136,7 @@ static bool AddFile(ShaderPreprocessor *pp, String filename)
     {
         if (pp->file_stack[i].filename == filename)
         {
-            LogError(Log_Shader_Preprocessor, "Circular include of file '%.*s'", filename.length, filename.data);
+            LogError(Log_Shader_Preprocessor, "Circular include of file '%.*s'", FSTR(filename));
             return false;
         }
     }
@@ -144,7 +144,7 @@ static bool AddFile(ShaderPreprocessor *pp, String filename)
     auto contents = ReadEntireFile(filename);
     if (!contents.ok)
     {
-        LogError(Log_Shader_Preprocessor, "Could not read file '%.*s'", filename.length, filename.data);
+        LogError(Log_Shader_Preprocessor, "Could not read file '%.*s'", FSTR(filename));
         return false;
     }
 

@@ -15,7 +15,7 @@ GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc)
     GLuint handle = 0;
     glCreateTextures(GLTextureType(desc.type), 1, &handle);
 
-    String texture_name = TPrintf("Texture '%.*s'", name.length, name.data);
+    String texture_name = TPrintf("Texture '%.*s'", FSTR(name));
     glObjectLabel(GL_TEXTURE, handle, texture_name.length, texture_name.data);
 
     GLenum internal_format = GLPixelFormat(desc.pixel_format);
@@ -53,7 +53,7 @@ GfxTexture GfxCreateTexture(String name, GfxTextureDesc desc)
     GLenum err = glGetError();
     if (err != 0)
     {
-        LogError(Log_OpenGL, "Could not create texture '%.*s'", name.length, name.data);
+        LogError(Log_OpenGL, "Could not create texture '%.*s'", FSTR(name));
         glDeleteTextures(1, &handle);
         return {};
     }
@@ -124,7 +124,7 @@ GfxSamplerState GfxCreateSamplerState(String name, GfxSamplerStateDesc desc)
     GLuint handle = 0;
     glCreateSamplers(1, &handle);
 
-    String sampler_name = TPrintf("Sampler State '%.*s'", name.length, name.data);
+    String sampler_name = TPrintf("Sampler State '%.*s'", FSTR(name));
     glObjectLabel(GL_SAMPLER, handle, sampler_name.length, sampler_name.data);
 
     // @Todo: use_average_lod

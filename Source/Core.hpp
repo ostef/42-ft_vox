@@ -173,6 +173,8 @@ struct String
     }
 };
 
+#define FSTR(str) (int)((str).length), (str).data
+
 String JoinStrings(String a, String b, String separator, Allocator allocator);
 String CloneString(String str, Allocator allocator);
 char *CloneToCString(String str, Allocator allocator);

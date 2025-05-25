@@ -96,14 +96,14 @@ GfxShader GfxLoadShader(String name, String source_code, GfxPipelineStage stage,
 
         char *buffer = Alloc<char>(log_length + 1, temp);
         glGetProgramInfoLog(handle, log_length, null, buffer);
-        LogError(Log_OpenGL, "Failed to compile and link %s shader '%.*s':\n\n%s", stage_name, name.length, name.data, buffer);
+        LogError(Log_OpenGL, "Failed to compile and link %s shader '%.*s':\n\n%s", stage_name, FSTR(name), buffer);
 
         glDeleteProgram(handle);
 
         return {};
     }
 
-    String program_name = TPrintf("Shader '%.*s' (%s)", name.length, name.data, stage_name);
+    String program_name = TPrintf("Shader '%.*s' (%s)", FSTR(name), stage_name);
     glObjectLabel(GL_PROGRAM, handle, program_name.length, program_name.data);
 
     GfxShader result{};

@@ -27,11 +27,11 @@ GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc)
     if (desc.fragment_shader)
         glUseProgramStages(result.pso, GL_FRAGMENT_SHADER_BIT, desc.fragment_shader->handle);
 
-    String pso_name = TPrintf("Pipeline '%.*s'", name.length, name.data);
+    String pso_name = TPrintf("Pipeline '%.*s'", FSTR(name));
     glObjectLabel(GL_PROGRAM_PIPELINE, result.pso, pso_name.length, pso_name.data);
 
     glCreateVertexArrays(1, &result.vao);
-    String vao_name = TPrintf("Vertex Array '%.*s'", name.length, name.data);
+    String vao_name = TPrintf("Vertex Array '%.*s'", FSTR(name));
     glObjectLabel(GL_VERTEX_ARRAY, result.vao, vao_name.length, vao_name.data);
 
     foreach (i, desc.vertex_layout)
