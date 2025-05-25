@@ -35,6 +35,9 @@
 
 namespace NS
 {
+
+class String;
+
 template <class _Class, class _Base = class Object>
 class _NS_EXPORT Referencing : public _Base
 {

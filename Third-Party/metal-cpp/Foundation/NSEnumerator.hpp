@@ -29,6 +29,9 @@
 
 namespace NS
 {
+
+class Array;
+
 struct FastEnumerationState
 {
     unsigned long  state;
