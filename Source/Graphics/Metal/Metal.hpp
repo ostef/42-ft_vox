@@ -27,9 +27,15 @@ struct GfxSamplerState
 struct GfxContext
 {
     SDL_Window *window = null;
-};
+    SDL_Renderer *renderer = null;
 
-extern GfxContext g_gfx_context;
+    CA::MetalLayer *metal_layer = null;
+    MTL::Device *device = null;
+    MTL::CommandQueue *cmd_queue = null;
+
+    semaphore_t frame_semaphore = {};
+    int backbuffer_index = 0;
+};
 
 struct GfxCommandBuffer
 {

@@ -1,6 +1,6 @@
 #include "Graphics.hpp"
 
-GfxContext g_gfx_context{};
+GfxContext g_gfx_context;
 
 static void GLDebugMessageCallback(
     GLenum source,

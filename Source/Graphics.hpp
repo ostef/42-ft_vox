@@ -536,3 +536,5 @@ void GfxCopyBufferToBuffer(
 #else
 #error "No graphics backend"
 #endif
+
+extern GfxContext g_gfx_context;

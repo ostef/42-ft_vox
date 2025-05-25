@@ -230,6 +230,7 @@ Result<String> ReadEntireFile(String filename);
 static const char *Log_Graphics = "Graphics";
 static const char *Log_Vulkan   = "Graphics/Vulkan";
 static const char *Log_OpenGL   = "Graphics/OpenGL";
+static const char *Log_Metal    = "Graphics/Metal";
 static const char *Log_Shaders  = "Graphics/Shaders";
 
 void LogMessage(const char *section, const char *str, ...);

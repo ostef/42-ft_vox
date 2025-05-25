@@ -56,8 +56,12 @@ int main(int argc, char **args)
     u32 sdl_flags = 0;
     #if defined(VOX_BACKEND_OPENGL)
         sdl_flags |= SDL_WINDOW_OPENGL;
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
     #elif defined(VOX_BACKEND_VULKAN)
         sdl_flags |= SDL_WINDOW_VULKAN;
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "vulkan");
+    #elif defined(VOX_BACKEND_METAL)
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
     #endif
 
     g_window = SDL_CreateWindow("Vox", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, sdl_flags);

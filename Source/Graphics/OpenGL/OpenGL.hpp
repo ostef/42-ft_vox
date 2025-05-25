@@ -48,8 +48,6 @@ struct GfxContext
     GLuint frame_time_queries[Gfx_Max_Frames_In_Flight * 2] = {};
 };
 
-extern GfxContext g_gfx_context;
-
 struct GfxCommandBuffer
 {
 };

@@ -1,5 +1,3 @@
-#include "Graphics.hpp"
-
 #define NS_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
 #define MTL_PRIVATE_IMPLEMENTATION
@@ -7,8 +5,26 @@
 #include <Metal/Metal.hpp>
 #include <QuartzCore/QuartzCore.hpp>
 
-void GfxCreateContext(SDL_Window *window) {}
-void GfxDestroyContext() {}
+#include "Graphics.hpp"
+
+GfxContext g_gfx_context;
+
+void GfxCreateContext(SDL_Window *window)
+{
+    g_gfx_context.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    g_gfx_context.metal_layer = (CA::MetalLayer *)SDL_RenderGetMetalLayer(g_gfx_context.renderer);
+    g_gfx_context.device = g_gfx_context.metal_layer->device();
+    g_gfx_context.cmd_queue = g_gfx_context.device->newCommandQueue();
+
+    LogMessage(Log_Metal, "Initialized Metal: %s", g_gfx_context.device->name()->utf8String());
+}
+
+void GfxDestroyContext()
+{
+    g_gfx_context.cmd_queue->release();
+    SDL_DestroyRenderer(g_gfx_context.renderer);
+}
 
 void GfxBeginFrame() {}
 void GfxSubmitFrame() {}

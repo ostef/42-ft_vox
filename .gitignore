@@ -1,6 +1,7 @@
 vox
 vox-gl
 vox-vk
+vox-metal
 *.o
 *.so
 *.a
