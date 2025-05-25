@@ -528,11 +528,11 @@ void GfxCopyBufferToBuffer(
 );
 
 #if defined(VOX_BACKEND_VULKAN)
-#include "Vulkan/Vulkan.hpp"
+#include "Graphics/Vulkan/Vulkan.hpp"
 #elif defined(VOX_BACKEND_OPENGL)
-#include "OpenGL/OpenGL.hpp"
+#include "Graphics/OpenGL/OpenGL.hpp"
 #elif defined(VOX_BACKEND_METAL)
-#include "Metal/Metal.hpp"
+#include "Graphics/Metal/Metal.hpp"
 #else
 #error "No graphics backend"
 #endif

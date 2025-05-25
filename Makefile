@@ -2,7 +2,7 @@ UNAME=$(shell uname)
 
 OPENGL_NAME=vox-gl
 VULKAN_NAME=vox-vk
-METAL_NAME=vok-metal
+METAL_NAME=vox-metal
 
 ifeq ($(UNAME), Linux)
 
@@ -15,14 +15,36 @@ NAME=$(METAL_NAME)
 endif
 
 SRC_DIR=Source
+
 SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp renderer.cpp world.cpp shader_preprocessor.cpp ui.cpp
-OPENGL_SRC_FILES=OpenGL/opengl.cpp OpenGL/render_pass.cpp OpenGL/copy_pass.cpp OpenGL/pipeline_state.cpp OpenGL/shader.cpp OpenGL/texture.cpp OpenGL/buffer.cpp
-METAL_SRC_FILES=Metal/metal.cpp
+
+OPENGL_SRC_FILES=Graphics/OpenGL/opengl.cpp \
+	Graphics/OpenGL/render_pass.cpp \
+	Graphics/OpenGL/copy_pass.cpp \
+	Graphics/OpenGL/pipeline_state.cpp \
+	Graphics/OpenGL/shader.cpp \
+	Graphics/OpenGL/texture.cpp \
+	Graphics/OpenGL/buffer.cpp
+
+METAL_SRC_FILES=Graphics/Metal/metal.cpp \
+	Graphics/Metal/render_pass.cpp \
+	Graphics/Metal/copy_pass.cpp \
+	Graphics/Metal/pipeline_state.cpp \
+	Graphics/Metal/shader.cpp \
+	Graphics/Metal/texture.cpp \
+	Graphics/Metal/buffer.cpp
 
 INCLUDE_DIRS=Source Third-Party/stb_image
-OPENGL_INCLUDE_DIRS=/usr/include/SDL2 Third-Party/glad/include
-VULKAN_INCLUDE_DIRS=/usr/include/SDL2 $(HOME)/vulkan/1.4.313.0/x86_64/include
-METAL_INCLUDE_DIRS=/opt/homebrew/include /opt/homebrew/include/SDL2 Third-Party/metal-cpp
+
+ifeq ($(UNAME), Linux)
+INCLUDE_DIRS += /usr/include/SDL2
+else ifeq ($(UNAME), Darwin)
+INCLUDE_DIRS += /opt/homebrew/include /opt/homebrew/include/SDL2
+endif
+
+OPENGL_INCLUDE_DIRS=Third-Party/glad/include
+VULKAN_INCLUDE_DIRS=$(HOME)/vulkan/1.4.313.0/x86_64/include
+METAL_INCLUDE_DIRS=Third-Party/metal-cpp
 
 OPENGL_OBJ_DIR=Obj/OpenGL
 VULKAN_OBJ_DIR=Obj/Vulkan
@@ -84,10 +106,12 @@ $(METAL_NAME): $(addprefix $(METAL_OBJ_DIR)/,$(OBJ_FILES)) $(addprefix $(METAL_O
 clean:
 	rm -rf $(OPENGL_OBJ_DIR)
 	rm -rf $(VULKAN_OBJ_DIR)
+	rm -rf $(METAL_OBJ_DIR)
 
 fclean: clean
 	rm -f $(OPENGL_NAME)
 	rm -f $(VULKAN_NAME)
+	rm -f $(METAL_NAME)
 
 re: | fclean all
 
