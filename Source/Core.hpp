@@ -82,8 +82,8 @@ void *HeapAllocator(AllocatorOp op, s64 size, void *ptr, void *data);
 
 struct Allocator
 {
-    void *data;
-    AllocatorFunc func;
+    void *data = null;
+    AllocatorFunc func = null;
 };
 
 extern Allocator heap;
@@ -118,16 +118,16 @@ T *Alloc(s64 count, Allocator allocator, bool initialize = false)
 
 struct MemoryArenaPage
 {
-    struct MemoryArenaPage *prev;
-    s64 used;
-    s64 total_size;
+    struct MemoryArenaPage *prev = null;
+    s64 used = 0;
+    s64 total_size = 0;
 };
 
 struct MemoryArena
 {
-    MemoryArenaPage *last_page;
-    s64 used;
-    s64 total_size;
+    MemoryArenaPage *last_page = null;
+    s64 used = 0;
+    s64 total_size = 0;
 };
 
 void ResetMemoryArena(MemoryArena *arena);
@@ -142,16 +142,8 @@ struct String
 
     String(const char *str = "")
     {
-        if (str == "")
-        {
-            this->data = null;
-            this->length = 0;
-        }
-        else
-        {
-            this->length = strlen(str);
-            this->data = (char *)str;
-        }
+        this->length = strlen(str);
+        this->data = (char *)str;
     }
 
     explicit String(s64 length, char *data)
@@ -163,7 +155,7 @@ struct String
     inline char &operator [](s64 index)
     {
         Assert(index >= 0 && index < length,
-            "Array bounds check failed (attempted index is %ld, length is %ld)",
+            "Array bounds check failed (attempted index is %lld, length is %lld)",
             index, length
         );
 
@@ -173,7 +165,7 @@ struct String
     inline const char &operator [](s64 index) const
     {
         Assert(index >= 0 && index < length,
-            "Array bounds check failed (attempted index is %ld, length is %ld)",
+            "Array bounds check failed (attempted index is %lld, length is %lld)",
             index, length
         );
 
@@ -274,7 +266,7 @@ struct Slice
     inline T &operator [](s64 index)
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %lld, count is %lld)",
             index, count
         );
 
@@ -284,7 +276,7 @@ struct Slice
     inline const T &operator [](s64 index) const
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %lld, count is %lld)",
             index, count
         );
 
@@ -314,7 +306,7 @@ struct Array
     inline T &operator [](s64 index)
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %lld, count is %lld)",
             index, count
         );
 
@@ -324,7 +316,7 @@ struct Array
     inline const T &operator [](s64 index) const
     {
         Assert(index >= 0 && index < count,
-            "Array bounds check failed (attempted index is %ld, count is %ld)",
+            "Array bounds check failed (attempted index is %lld, count is %lld)",
             index, count
         );
 
@@ -404,7 +396,7 @@ void ArrayClear(Array<T> *arr)
 template<typename T>
 void ArrayOrderedRemoveAt(Array<T> *arr, s64 index)
 {
-    Assert(index >= 0 && index < arr->count, "Array bounds check failed (got %ld, max is %ld)", index, arr->count);
+    Assert(index >= 0 && index < arr->count, "Array bounds check failed (got %lld, max is %lld)", index, arr->count);
 
     for (s64 i = index; i < arr->count - 1; i += 1)
         arr->data[i] = arr->data[i + 1];
