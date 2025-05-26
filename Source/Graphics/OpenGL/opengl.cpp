@@ -236,7 +236,7 @@ void GLDebugMessageCallback(
     case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_str = ", deprecated behavior"; break;
     case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = ", undefined behavior"; break;
     case GL_DEBUG_TYPE_PORTABILITY: type_str = ", portability concern"; break;
-    case GL_DEBUG_TYPE_PERFORMANCE: type_str = ", performance concern"; break;
+    case GL_DEBUG_TYPE_PERFORMANCE: type_str = ", performance concern"; return;
     }
 
     switch (severity)
