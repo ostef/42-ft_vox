@@ -9,7 +9,7 @@ void UIBeginFrame();
 void UIRender(FrameRenderContext *ctx);
 
 void UISetMouse(bool has_mouse);
-void UISetCursorStartX(float x);
+void UISetCursorStart(float x, float y);
 void UISameLine();
 void UIImage(GfxTexture *texture, Vec2f size, Vec2f uv0 = {0,0}, Vec2f uv1 = {1,1});
 void UITextAt(Vec2f position, String text);

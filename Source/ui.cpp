@@ -87,9 +87,10 @@ void UISetMouse(bool has_mouse)
     g_ui_has_mouse = has_mouse;
 }
 
-void UISetCursorStartX(float x)
+void UISetCursorStart(float x, float y)
 {
     g_ui_cursor_start_x = x;
+    g_ui_cursor = {x, y};
 }
 
 static Vec2f LayoutElem(Vec2f size)
