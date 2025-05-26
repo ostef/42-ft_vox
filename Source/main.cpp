@@ -123,9 +123,24 @@ int main(int argc, char **args)
             HandleInputEvent(event);
         }
 
+        int window_w, window_h;
+        SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
+
         bool regenerate = false;
 
         UIBeginFrame();
+
+        const char *Directions[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+        float octant = g_world.camera.current_yaw / (2 * Pi);
+        octant += 0.5 / 8.0;
+        octant *= 8;
+        octant = fmodf(octant, 8);
+        if (octant < 0)
+            octant += 8;
+        if (octant >= 8)
+            octant = 0;
+
+        UIText(TPrintf("X: %.0f Y: %.0f Z: %.0f, %s", g_world.camera.position.x, g_world.camera.position.y, g_world.camera.position.z, Directions[(int)octant]));
 
         auto all_noise_params = GetAllNoiseParams(&g_world);
 
