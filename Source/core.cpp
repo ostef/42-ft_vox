@@ -275,3 +275,208 @@ String TPrintf(const char *fmt, ...)
 
     return String{length, buffer};
 }
+
+static void *WorkerThreadRoutine(void *data);
+
+static void InitWorkList(ThreadWorkList *list)
+{
+    pthread_mutex_init(&list->mutex, null);
+    sem_init(&list->semaphore, 0, 0);
+}
+
+static void DestroyWorkList(ThreadWorkList *list)
+{
+    pthread_mutex_destroy(&list->mutex);
+    sem_destroy(&list->semaphore);
+}
+
+void InitThreadGroup(ThreadGroup *group, String name, ThreadGroupFunc func, int num_threads)
+{
+    Assert(num_threads > 1);
+    Assert(func != null);
+
+    group->name = name;
+    group->func = func;
+    group->worker_threads = AllocSlice<WorkerThread>(num_threads, heap, true);
+
+    foreach (i, group->worker_threads)
+    {
+        auto worker = &group->worker_threads[i];
+        worker->group = group;
+
+        InitWorkList(&worker->available_work);
+        InitWorkList(&worker->completed_work);
+    }
+
+    group->initialized = true;
+}
+
+void DestroyThreadGroup(ThreadGroup *group)
+{
+    if (group->started)
+        Stop(group);
+
+    foreach (i, group->worker_threads)
+    {
+        auto worker = &group->worker_threads[i];
+
+        DestroyWorkList(&worker->available_work);
+        DestroyWorkList(&worker->completed_work);
+    }
+
+    Free(group->worker_threads.data, heap);
+    *group = {};
+}
+
+void Start(ThreadGroup *group)
+{
+    Assert(group->initialized, "Thread group is not initialized");
+    Assert(!group->started, "Thread group has already been started");
+
+    foreach (i, group->worker_threads)
+    {
+        auto worker = &group->worker_threads[i];
+        int status = pthread_create(&worker->thread, null, WorkerThreadRoutine, worker);
+        Assert(status == 0);
+    }
+
+    group->started = true;
+}
+
+void Stop(ThreadGroup *group)
+{
+    Assert(group->started, "Thread group has not been started");
+
+    group->should_stop = true;
+
+    foreach (i, group->worker_threads)
+    {
+        auto worker = &group->worker_threads[i];
+        sem_post(&worker->available_work.semaphore);
+
+        pthread_join(worker->thread, null);
+        worker->thread = 0;
+    }
+
+    group->started = false;
+}
+
+static void AddWorkToList(ThreadWorkList *list, ThreadWorkEntry *entry)
+{
+    pthread_mutex_lock(&list->mutex);
+
+    if (list->last)
+        list->last->next = entry;
+    else
+        list->first = entry;
+
+    list->last = entry;
+    list->count += 1;
+
+    pthread_mutex_unlock(&list->mutex);
+
+    sem_post(&list->semaphore);
+}
+
+static ThreadWorkEntry *GetWorkFromList(ThreadWorkList *list)
+{
+    pthread_mutex_lock(&list->mutex);
+
+    auto result = list->first;
+
+    list->first = result->next;
+    if (!list->first)
+        list->last = null;
+
+    list->count -= 1;
+
+    result->next = null;
+
+    pthread_mutex_unlock(&list->mutex);
+
+    return result;
+}
+
+void AddWork(ThreadGroup *group, void *work)
+{
+    Assert(group->started, "Thread group has not been started");
+
+    if (group->should_stop)
+        return;
+
+    auto entry = Alloc<ThreadWorkEntry>(heap);
+    entry->work = work;
+
+    entry->worker_thread_index = group->worker_thread_assign_index;
+
+    group->worker_thread_assign_index += 1;
+    if (group->worker_thread_assign_index >= group->worker_threads.count)
+        group->worker_thread_assign_index = 0;
+
+    AddWorkToList(&group->worker_threads[entry->worker_thread_index].available_work, entry);
+}
+
+Slice<void *> GetCompletedWork(ThreadGroup *group)
+{
+    Array<void *> result = {.allocator=temp};
+
+    ThreadWorkEntry *completed = null;
+    int count = 0;
+    foreach (i, group->worker_threads)
+    {
+        auto worker = &group->worker_threads[i];
+
+        pthread_mutex_lock(&worker->completed_work.mutex);
+
+        count += worker->completed_work.count;
+
+        if (worker->completed_work.last)
+        {
+            worker->completed_work.last->next = completed;
+            completed = worker->completed_work.first;
+        }
+
+        worker->completed_work.first = null;
+        worker->completed_work.last = null;
+        worker->completed_work.count = 0;
+
+        pthread_mutex_unlock(&worker->completed_work.mutex);
+    }
+
+    while (completed)
+    {
+        auto next = completed->next;
+
+        ArrayPush(&result, completed->work);
+
+        Free(completed, heap);
+
+        completed = next;
+    }
+
+    Assert(result.count == count);
+
+    return MakeSlice(result);
+}
+
+void *WorkerThreadRoutine(void *data)
+{
+    auto worker = (WorkerThread *)data;
+
+    while (!worker->group->should_stop)
+    {
+        sem_wait(&worker->available_work.semaphore);
+        if (worker->group->should_stop)
+            break;
+
+        auto entry = GetWorkFromList(&worker->available_work);
+
+        if (entry)
+        {
+            worker->group->func(worker->group, entry->work);
+            AddWorkToList(&worker->completed_work, entry);
+        }
+    }
+
+    return null;
+}

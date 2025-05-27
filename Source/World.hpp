@@ -52,6 +52,8 @@ struct World
     Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
 
+    ThreadGroup chunk_generation_thread_group = {};
+
     NoiseParams density_params = {};
     NoiseParams continentalness_params = {};
     NoiseParams erosion_params = {};
@@ -110,6 +112,7 @@ void InitWorld(World *world, u32 seed);
 void DestroyWorld(World *world);
 void DestroyChunk(World *world, Chunk *chunk);
 
-void GenerateChunk(World *world, s16 x, s16 z);
+void QueueChunkGeneration(World *world, s16 x, s16 z);
+void HandleNewlyGeneratedChunks(World *world);
 
 void MarkChunkDirty(World *world, Chunk *chunk);

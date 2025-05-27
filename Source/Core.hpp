@@ -7,6 +7,9 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <pthread.h>
+#include <semaphore.h>
+
 #if defined(_WIN32)
 #define VOX_PLATFORM_WINDOWS
 #elif defined(__linux__)
@@ -606,3 +609,50 @@ bool HashMapRemove(HashMap<TKey, TValue> *map, TKey key, TValue *removed_value =
 
     return true;
 }
+
+// Inspired by Jai's Thread module
+
+typedef void (*ThreadGroupFunc)(struct ThreadGroup *, void *work);
+
+struct ThreadWorkEntry
+{
+    ThreadWorkEntry *next = null;
+    void *work = null;
+    int worker_thread_index = -1;
+};
+
+struct ThreadWorkList
+{
+    pthread_mutex_t mutex = {};
+    sem_t semaphore = {}; // When signaled, this means "hey something was added!"
+    ThreadWorkEntry *first = null;
+    ThreadWorkEntry *last = null;
+    int count = 0;
+};
+
+struct WorkerThread
+{
+    struct ThreadGroup *group = null;
+    pthread_t thread = 0;
+    ThreadWorkList available_work = {};
+    ThreadWorkList completed_work = {};
+};
+
+struct ThreadGroup
+{
+    String name = "";
+    ThreadGroupFunc func = null;
+    Slice<WorkerThread> worker_threads = {};
+    int worker_thread_assign_index = 0;
+
+    bool initialized = false;
+    bool started = false;
+    bool should_stop = false;
+};
+
+void InitThreadGroup(ThreadGroup *group, String name, ThreadGroupFunc func, int num_threads);
+void DestroyThreadGroup(ThreadGroup *group);
+void Start(ThreadGroup *group);
+void Stop(ThreadGroup *group);
+void AddWork(ThreadGroup *group, void *work);
+Slice<void *> GetCompletedWork(ThreadGroup *group);

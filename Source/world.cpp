@@ -103,6 +103,8 @@ void SetDefaultNoiseParams(World *world)
     world->peaks_and_valleys_params.octaves = 3;
 }
 
+static void GenerateChunkWorker(ThreadGroup *group, void *work);
+
 void InitWorld(World *world, u32 seed)
 {
     RNG rng{};
@@ -118,6 +120,9 @@ void InitWorld(World *world, u32 seed)
 
     world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
+
+    InitThreadGroup(&world->chunk_generation_thread_group, "Chunk Generation", GenerateChunkWorker, 20);
+    Start(&world->chunk_generation_thread_group);
 
     world->density_params.max_amplitude = PerlinFractalMax(world->density_params.octaves, world->density_params.persistance);
 
@@ -148,6 +153,8 @@ void DestroyWorld(World *world)
     HashMapFree(&world->chunks_by_position);
     ArrayFree(&world->all_chunks);
     ArrayFree(&world->dirty_chunks);
+
+    DestroyThreadGroup(&world->chunk_generation_thread_group);
 }
 
 void DestroyChunk(World *world, Chunk *chunk)
@@ -203,11 +210,31 @@ void DestroyChunk(World *world, Chunk *chunk)
 
 float squashing_factor = 1.0;
 
-void GenerateChunk(World *world, s16 x, s16 z)
+struct ChunkGenerationWork
+{
+    World *world = null;
+    Chunk *chunk = null;
+};
+
+void QueueChunkGeneration(World *world, s16 x, s16 z)
 {
     Chunk *chunk = Alloc<Chunk>(heap);
     chunk->x = x;
     chunk->z = z;
+
+    auto work = Alloc<ChunkGenerationWork>(heap);
+    work->world = world;
+    work->chunk = chunk;
+
+    AddWork(&world->chunk_generation_thread_group, work);
+}
+
+void GenerateChunkWorker(ThreadGroup *worker, void *data)
+{
+    auto work = (ChunkGenerationWork *)data;
+
+    World *world = work->world;
+    Chunk *chunk = work->chunk;
 
     for (int iy = 0; iy < Chunk_Height; iy += 1)
     {
@@ -217,9 +244,9 @@ void GenerateChunk(World *world, s16 x, s16 z)
             {
                 int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
 
-                float perlin_x = (x * Chunk_Size + ix);
+                float perlin_x = (chunk->x * Chunk_Size + ix);
                 float perlin_y = iy;
-                float perlin_z = (z * Chunk_Size + iz);
+                float perlin_z = (chunk->z * Chunk_Size + iz);
 
                 float continentalness = PerlinFractalNoise(world->continentalness_params, world->continentalness_offsets, perlin_x, perlin_z);
                 float erosion = PerlinFractalNoise(world->erosion_params, world->erosion_offsets, perlin_x, perlin_z);
@@ -240,36 +267,50 @@ void GenerateChunk(World *world, s16 x, s16 z)
     }
 
     chunk->is_generated = true;
-    HashMapInsert(&world->chunks_by_position, {.x=x, .z=z}, chunk);
-    ArrayPush(&world->all_chunks, chunk);
-    ArrayPush(&world->dirty_chunks, chunk);
+}
 
-    chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x+1), .z=z});
-    if (chunk->east)
+void HandleNewlyGeneratedChunks(World *world)
+{
+    auto completed = GetCompletedWork(&world->chunk_generation_thread_group);
+    foreach (i, completed)
     {
-        chunk->east->west = chunk;
-        MarkChunkDirty(world, chunk->east);
-    }
+        auto work = (ChunkGenerationWork *)completed[i];
+        defer(Free(work, heap));
 
-    chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(x-1), .z=z});
-    if (chunk->west)
-    {
-        chunk->west->east = chunk;
-        MarkChunkDirty(world, chunk->west);
-    }
+        auto chunk = work->chunk;
 
-    chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z+1)});
-    if (chunk->north)
-    {
-        chunk->north->south = chunk;
-        MarkChunkDirty(world, chunk->north);
-    }
+        ArrayPush(&world->all_chunks, chunk);
 
-    chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=x, .z=(s16)(z-1)});
-    if (chunk->south)
-    {
-        chunk->south->north = chunk;
-        MarkChunkDirty(world, chunk->south);
+        HashMapInsert(&world->chunks_by_position, {.x=chunk->x, .z=chunk->z}, chunk);
+        MarkChunkDirty(world, chunk);
+
+        chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x+1), .z=chunk->z});
+        if (chunk->east)
+        {
+            chunk->east->west = chunk;
+            MarkChunkDirty(world, chunk->east);
+        }
+
+        chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x-1), .z=chunk->z});
+        if (chunk->west)
+        {
+            chunk->west->east = chunk;
+            MarkChunkDirty(world, chunk->west);
+        }
+
+        chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z+1)});
+        if (chunk->north)
+        {
+            chunk->north->south = chunk;
+            MarkChunkDirty(world, chunk->north);
+        }
+
+        chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z-1)});
+        if (chunk->south)
+        {
+            chunk->south->north = chunk;
+            MarkChunkDirty(world, chunk->south);
+        }
     }
 }
 

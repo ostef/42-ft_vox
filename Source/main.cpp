@@ -7,6 +7,13 @@
 
 #include <SDL.h>
 
+struct Settings
+{
+    int render_distance = 16;
+};
+
+Settings g_settings;
+
 u64 g_frame_index = 0;
 
 static MemoryArena g_frame_arena;
@@ -93,12 +100,12 @@ int main(int argc, char **args)
     InitWorld(&g_world, 123456);
     defer(DestroyWorld(&g_world));
 
-    int N = 3;
+    int N = g_settings.render_distance;
     for (s16 x = -N; x <= N; x += 1)
     {
         for (s16 z = -N; z <= N; z += 1)
         {
-            GenerateChunk(&g_world, x, z);
+            QueueChunkGeneration(&g_world, x, z);
         }
     }
 
@@ -122,6 +129,8 @@ int main(int argc, char **args)
 
             HandleInputEvent(event);
         }
+
+        HandleNewlyGeneratedChunks(&g_world);
 
         int window_w, window_h;
         SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
@@ -217,7 +226,7 @@ int main(int argc, char **args)
             {
                 for (s16 z = -N; z <= N; z += 1)
                 {
-                    GenerateChunk(&g_world, x, z);
+                    QueueChunkGeneration(&g_world, x, z);
                 }
             }
         }
