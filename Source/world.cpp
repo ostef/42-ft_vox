@@ -222,6 +222,37 @@ void QueueChunkGeneration(World *world, s16 x, s16 z)
     chunk->x = x;
     chunk->z = z;
 
+    ArrayPush(&world->all_chunks, chunk);
+    HashMapInsert(&world->chunks_by_position, {.x=chunk->x, .z=chunk->z}, chunk);
+
+    chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x+1), .z=chunk->z});
+    if (chunk->east)
+    {
+        chunk->east->west = chunk;
+        MarkChunkDirty(world, chunk->east);
+    }
+
+    chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x-1), .z=chunk->z});
+    if (chunk->west)
+    {
+        chunk->west->east = chunk;
+        MarkChunkDirty(world, chunk->west);
+    }
+
+    chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z+1)});
+    if (chunk->north)
+    {
+        chunk->north->south = chunk;
+        MarkChunkDirty(world, chunk->north);
+    }
+
+    chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z-1)});
+    if (chunk->south)
+    {
+        chunk->south->north = chunk;
+        MarkChunkDirty(world, chunk->south);
+    }
+
     auto work = Alloc<ChunkGenerationWork>(heap);
     work->world = world;
     work->chunk = chunk;
@@ -277,40 +308,7 @@ void HandleNewlyGeneratedChunks(World *world)
         auto work = (ChunkGenerationWork *)completed[i];
         defer(Free(work, heap));
 
-        auto chunk = work->chunk;
-
-        ArrayPush(&world->all_chunks, chunk);
-
-        HashMapInsert(&world->chunks_by_position, {.x=chunk->x, .z=chunk->z}, chunk);
-        MarkChunkDirty(world, chunk);
-
-        chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x+1), .z=chunk->z});
-        if (chunk->east)
-        {
-            chunk->east->west = chunk;
-            MarkChunkDirty(world, chunk->east);
-        }
-
-        chunk->west  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x-1), .z=chunk->z});
-        if (chunk->west)
-        {
-            chunk->west->east = chunk;
-            MarkChunkDirty(world, chunk->west);
-        }
-
-        chunk->north = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z+1)});
-        if (chunk->north)
-        {
-            chunk->north->south = chunk;
-            MarkChunkDirty(world, chunk->north);
-        }
-
-        chunk->south = HashMapFind(&world->chunks_by_position, ChunkKey{.x=chunk->x, .z=(s16)(chunk->z-1)});
-        if (chunk->south)
-        {
-            chunk->south->north = chunk;
-            MarkChunkDirty(world, chunk->south);
-        }
+        MarkChunkDirty(world, work->chunk);
     }
 }
 

@@ -117,7 +117,7 @@ struct Mesh
     bool uploaded = false;
 };
 
-void GenerateChunkMesh(Chunk *chunk);
+bool GenerateChunkMesh(Chunk *chunk);
 void CancelChunkMeshUpload(Chunk *chunk);
 
 struct FrameRenderContext

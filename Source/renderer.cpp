@@ -490,8 +490,19 @@ static void PushBlockVertices(
 
 static void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices);
 
-void GenerateChunkMesh(Chunk *chunk)
+bool GenerateChunkMesh(Chunk *chunk)
 {
+    if (!chunk->is_generated)
+        return false;
+    if (chunk->east && !chunk->east->is_generated)
+        return false;
+    if (chunk->west && !chunk->west->is_generated)
+        return false;
+    if (chunk->north && !chunk->north->is_generated)
+        return false;
+    if (chunk->south && !chunk->south->is_generated)
+        return false;
+
     Array<BlockVertex> vertices {};
     vertices.allocator = heap;
     ArrayReserve(&vertices, chunk->mesh.vertex_count);
@@ -564,6 +575,8 @@ void GenerateChunkMesh(Chunk *chunk)
     }
 
     AppendChunkMeshUpload(chunk, vertices, indices);
+
+    return true;
 }
 
 struct ChunkMeshUpload
@@ -792,9 +805,10 @@ void RenderGraphics(World *world)
 
     // Generate dirty chunk meshes
     foreach (i, world->dirty_chunks)
-        GenerateChunkMesh(world->dirty_chunks[i]);
-
-    ArrayClear(&world->dirty_chunks);
+    {
+        if (GenerateChunkMesh(world->dirty_chunks[i]))
+            ArrayOrderedRemoveAt(&world->dirty_chunks, i);
+    }
 
     GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", ctx.cmd_buffer);
     {
