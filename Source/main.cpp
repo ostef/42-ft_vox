@@ -69,7 +69,7 @@ static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
 int main(int argc, char **args)
 {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-    u32 sdl_flags = 0;
+    u32 sdl_flags = SDL_WINDOW_RESIZABLE;
     #if defined(VOX_BACKEND_OPENGL)
         sdl_flags |= SDL_WINDOW_OPENGL;
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -127,6 +127,13 @@ int main(int argc, char **args)
         SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
 
         bool regenerate = false;
+        bool regenerate_mesh = false;
+
+        if (regenerate_mesh)
+        {
+            foreach (i, g_world.all_chunks)
+                MarkChunkDirty(&g_world, g_world.all_chunks[i]);
+        }
 
         UIBeginFrame();
 
