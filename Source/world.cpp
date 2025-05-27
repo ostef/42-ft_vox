@@ -73,13 +73,13 @@ Block GetBlock(Chunk *chunk, int x, int y, int z)
 Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
 {
     if (x < 0)
-        return chunk->west ? GetBlockInNeighbors(chunk->west, Chunk_Size - x, y, z) : Block_Air;
-    else if (x >= Chunk_Size)
-        return chunk->east ? GetBlockInNeighbors(chunk->east, x - Chunk_Size, y, z) : Block_Air;
+        return chunk->west ? GetBlock(chunk->west, Chunk_Size + x, y, z) : Block_Air;
+    if (x >= Chunk_Size)
+        return chunk->east ? GetBlock(chunk->east, x - Chunk_Size, y, z) : Block_Air;
     if (z < 0)
-        return chunk->south ? GetBlockInNeighbors(chunk->south, x, y, Chunk_Size - z) : Block_Air;
-    else if (z >= Chunk_Size)
-        return chunk->north ? GetBlockInNeighbors(chunk->north, x, y, z - Chunk_Size) : Block_Air;
+        return chunk->south ? GetBlock(chunk->south, x, y, Chunk_Size + z) : Block_Air;
+    if (z >= Chunk_Size)
+        return chunk->north ? GetBlock(chunk->north, x, y, z - Chunk_Size) : Block_Air;
 
     return GetBlock(chunk, x, y, z);
 }

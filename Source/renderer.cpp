@@ -346,6 +346,9 @@ static void PushBlockVertices(
     float block_height
 )
 {
+    if (!visible_faces || block == Block_Air)
+        return;
+
     u32 index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_East)
     {
@@ -510,8 +513,8 @@ void GenerateChunkMesh(Chunk *chunk)
 
                 auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
                 auto west   = GetBlockInNeighbors(chunk, x - 1, y, z);
-                auto top    = GetBlock(chunk, x, y + 1, z);
-                auto bottom = GetBlock(chunk, x, y - 1, z);
+                auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
+                auto bottom = GetBlockInNeighbors(chunk, x, y - 1, z);
                 auto north  = GetBlockInNeighbors(chunk, x, y, z + 1);
                 auto south  = GetBlockInNeighbors(chunk, x, y, z - 1);
 
