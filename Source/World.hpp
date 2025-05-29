@@ -43,6 +43,8 @@ struct Camera
 
 void UpdateCamera(Camera *camera);
 
+#define Spline_Max_Points 6
+
 struct World
 {
     u32 seed;
@@ -53,6 +55,7 @@ struct World
     Array<Chunk *> dirty_chunks = {};
 
     ThreadGroup chunk_generation_thread_group = {};
+    ThreadGroup chunk_mesh_generation_thread_group = {};
 
     NoiseParams density_params = {};
     NoiseParams continentalness_params = {};
@@ -102,6 +105,10 @@ struct Chunk
     Chunk *south = null;
 
     Block blocks[Chunk_Height * Chunk_Size * Chunk_Size];
+
+    float continentalness_values[Chunk_Size * Chunk_Size];
+    float erosion_values[Chunk_Size * Chunk_Size];
+    float peaks_and_valleys_values[Chunk_Size * Chunk_Size];
 };
 
 Block GetBlock(Chunk *chunk, int x, int y, int z);
@@ -116,3 +123,10 @@ void QueueChunkGeneration(World *world, s16 x, s16 z);
 void HandleNewlyGeneratedChunks(World *world);
 
 void MarkChunkDirty(World *world, Chunk *chunk);
+
+struct ChunkMeshWork
+{
+    Array<BlockVertex> vertices = {};
+    Array<u32> indices = {};
+    Chunk *chunk = null;
+};

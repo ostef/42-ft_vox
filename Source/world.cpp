@@ -124,6 +124,9 @@ void InitWorld(World *world, u32 seed)
     InitThreadGroup(&world->chunk_generation_thread_group, "Chunk Generation", GenerateChunkWorker, 20);
     Start(&world->chunk_generation_thread_group);
 
+    InitThreadGroup(&world->chunk_mesh_generation_thread_group, "Chunk Mesh Generation", GenerateChunkMeshWorker, 20);
+    Start(&world->chunk_mesh_generation_thread_group);
+
     world->density_params.max_amplitude = PerlinFractalMax(world->density_params.octaves, world->density_params.persistance);
 
     world->density_offsets = AllocSlice<Vec3f>(world->density_params.octaves, heap);
@@ -155,6 +158,7 @@ void DestroyWorld(World *world)
     ArrayFree(&world->dirty_chunks);
 
     DestroyThreadGroup(&world->chunk_generation_thread_group);
+    DestroyThreadGroup(&world->chunk_mesh_generation_thread_group);
 }
 
 void DestroyChunk(World *world, Chunk *chunk)
@@ -267,22 +271,48 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
     World *world = work->world;
     Chunk *chunk = work->chunk;
 
+    // Fill surface level terrain params
+    for (int iz = 0; iz < Chunk_Size; iz += 1)
+    {
+        for (int ix = 0; ix < Chunk_Size; ix += 1)
+        {
+            int surface_index = iz * Chunk_Size + ix;
+
+            float perlin_x = (chunk->x * Chunk_Size + ix);
+            float perlin_z = (chunk->z * Chunk_Size + iz);
+
+            float continentalness = PerlinFractalNoise(world->continentalness_params, world->continentalness_offsets, perlin_x, perlin_z);
+            float erosion = PerlinFractalNoise(world->erosion_params, world->erosion_offsets, perlin_x, perlin_z);
+            erosion = (erosion + 1) * 0.5;
+            float peaks_and_valleys = PerlinFractalNoise(world->peaks_and_valleys_params, world->peaks_and_valleys_offsets, perlin_x, perlin_z);
+            peaks_and_valleys = Abs(peaks_and_valleys);
+
+            chunk->continentalness_values[surface_index] = continentalness;
+            chunk->erosion_values[surface_index] = erosion;
+            chunk->peaks_and_valleys_values[surface_index] = peaks_and_valleys;
+        }
+    }
+
     for (int iy = 0; iy < Chunk_Height; iy += 1)
     {
         for (int iz = 0; iz < Chunk_Size; iz += 1)
         {
             for (int ix = 0; ix < Chunk_Size; ix += 1)
             {
-                int index = iy * Chunk_Size * Chunk_Size + iz * Chunk_Size + ix;
+                int surface_index = iz * Chunk_Size + ix;
+                int index = iy * Chunk_Size * Chunk_Size + surface_index;
 
                 float perlin_x = (chunk->x * Chunk_Size + ix);
                 float perlin_y = iy;
                 float perlin_z = (chunk->z * Chunk_Size + iz);
 
-                float continentalness = PerlinFractalNoise(world->continentalness_params, world->continentalness_offsets, perlin_x, perlin_z);
-                float erosion = PerlinFractalNoise(world->erosion_params, world->erosion_offsets, perlin_x, perlin_z);
-                erosion = (erosion + 1) * 0.5;
-                continentalness *= 1 - erosion;
+                float continentalness = chunk->continentalness_values[surface_index];
+                float erosion = chunk->erosion_values[surface_index];
+                float peaks_and_valleys = chunk->peaks_and_valleys_values[surface_index];
+
+                // Apply erosion above water level
+                if (continentalness > 0)
+                    continentalness *= 1 - erosion;
 
                 float base_height = 127 + continentalness * 20;
 
@@ -296,8 +326,6 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
             }
         }
     }
-
-    chunk->is_generated = true;
 }
 
 void HandleNewlyGeneratedChunks(World *world)
@@ -306,9 +334,10 @@ void HandleNewlyGeneratedChunks(World *world)
     foreach (i, completed)
     {
         auto work = (ChunkGenerationWork *)completed[i];
-        defer(Free(work, heap));
 
+        work->chunk->is_generated = true;
         MarkChunkDirty(world, work->chunk);
+        Free(work, heap);
     }
 }
 

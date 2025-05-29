@@ -656,3 +656,5 @@ void Start(ThreadGroup *group);
 void Stop(ThreadGroup *group);
 void AddWork(ThreadGroup *group, void *work);
 Slice<void *> GetCompletedWork(ThreadGroup *group);
+
+float GetTimeInSeconds();

@@ -79,11 +79,11 @@ DEP_FLAGS=-MT $@ -MMD -MP -MF $(DEP_DIR)/$*.d
 all: $(NAME)
 
 $(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEP_DIR)/%.d | $(DEP_DIR)
+$(OPENGL_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEP_DIR)/%.d | $(DEP_DIR) Makefile
 	@mkdir -p $(@D)
 	$(CPP) $(CPP_FLAGS) $(DEP_FLAGS) $(addprefix -D,$(OPENGL_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(OPENGL_INCLUDE_DIRS)) -c $< -o $@
 
-$(VULKAN_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(VULKAN_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | Makefile
 	@mkdir -p $(@D)
 	$(CPP) $(CPP_FLAGS) $(addprefix -D,$(VULKAN_DEFINES)) $(addprefix -I,$(INCLUDE_DIRS) $(VULKAN_INCLUDE_DIRS)) -c $< -o $@
 

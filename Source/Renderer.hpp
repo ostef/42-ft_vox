@@ -117,7 +117,7 @@ struct Mesh
     bool uploaded = false;
 };
 
-bool GenerateChunkMesh(Chunk *chunk);
+void GenerateChunkMeshWorker(ThreadGroup *group, void *data);
 void CancelChunkMeshUpload(Chunk *chunk);
 
 struct FrameRenderContext

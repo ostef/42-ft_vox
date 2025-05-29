@@ -4,6 +4,9 @@
 
 #include <stb_image.h>
 
+#define Max_Chunk_Mesh_Generation_Per_Frame 50
+#define Max_Chunk_Upload_Per_Frame 50
+
 static ShaderFile g_shader_files[] = {
     {.name="mesh_geometry"},
     {.name="post_processing"},
@@ -490,26 +493,16 @@ static void PushBlockVertices(
 
 static void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices);
 
-bool GenerateChunkMesh(Chunk *chunk)
+void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
 {
-    if (!chunk->is_generated)
-        return false;
-    if (chunk->east && !chunk->east->is_generated)
-        return false;
-    if (chunk->west && !chunk->west->is_generated)
-        return false;
-    if (chunk->north && !chunk->north->is_generated)
-        return false;
-    if (chunk->south && !chunk->south->is_generated)
-        return false;
+    auto work = (ChunkMeshWork *)data;
+    auto chunk = work->chunk;
 
-    Array<BlockVertex> vertices {};
-    vertices.allocator = heap;
-    ArrayReserve(&vertices, chunk->mesh.vertex_count);
+    work->vertices.allocator = heap;
+    ArrayReserve(&work->vertices, chunk->mesh.vertex_count);
 
-    Array<u32> indices {};
-    indices.allocator = heap;
-    ArrayReserve(&vertices, chunk->mesh.index_count);
+    work->indices.allocator = heap;
+    ArrayReserve(&work->indices, chunk->mesh.index_count);
 
     Vec3f chunk_position = Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size};
     for (int y = 0; y < Chunk_Height; y += 1)
@@ -543,40 +536,10 @@ bool GenerateChunkMesh(Chunk *chunk)
                 if (south == Block_Air)
                     faces |= BlockFaceFlag_South;
 
-                PushBlockVertices(&vertices, &indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, 1);
+                PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, 1);
             }
         }
     }
-
-    chunk->mesh.vertex_count = (u32)vertices.count;
-    chunk->mesh.index_count = (u32)indices.count;
-
-    // Recreate buffers if they are too small
-    if (chunk->mesh.vertex_count * sizeof(BlockVertex) > (u64)GetDesc(&chunk->mesh.vertex_buffer).size)
-    {
-        if (!IsNull(&chunk->mesh.vertex_buffer))
-            GfxDestroyBuffer(&chunk->mesh.vertex_buffer);
-
-        GfxBufferDesc desc{};
-        desc.size = chunk->mesh.vertex_count * sizeof(BlockVertex);
-        desc.usage = GfxBufferUsage_VertexBuffer;
-        chunk->mesh.vertex_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Vertices", chunk->x, chunk->z), desc);
-    }
-
-    if (chunk->mesh.index_count * sizeof(u32) > (u64)GetDesc(&chunk->mesh.index_buffer).size)
-    {
-        if (!IsNull(&chunk->mesh.index_buffer))
-            GfxDestroyBuffer(&chunk->mesh.index_buffer);
-
-        GfxBufferDesc desc{};
-        desc.size = chunk->mesh.index_count * sizeof(u32);
-        desc.usage = GfxBufferUsage_IndexBuffer;
-        chunk->mesh.index_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Indices", chunk->x, chunk->z), desc);
-    }
-
-    AppendChunkMeshUpload(chunk, vertices, indices);
-
-    return true;
 }
 
 struct ChunkMeshUpload
@@ -618,6 +581,22 @@ void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32>
     if (vertices.count <= 0 && indices.count <= 0)
         return;
 
+    foreach (i, g_pending_chunk_mesh_uploads)
+    {
+        auto upload = &g_pending_chunk_mesh_uploads[i];
+        if (upload->mesh == &chunk->mesh)
+        {
+            ArrayFree(&upload->vertices);
+            ArrayFree(&upload->indices);
+
+            upload->vertices = vertices;
+            upload->indices = indices;
+            upload->mesh->uploaded = false;
+
+            return;
+        }
+    }
+
     ChunkMeshUpload upload{};
     upload.vertices = vertices;
     upload.indices = indices;
@@ -627,8 +606,10 @@ void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32>
     ArrayPush(&g_pending_chunk_mesh_uploads, upload);
 }
 
-void UploadPendingChunkMeshes(GfxCopyPass *pass)
+void UploadPendingChunkMeshes(GfxCopyPass *pass, int max_uploads)
 {
+    float time_start = GetTimeInSeconds();
+
     ResetGfxAllocator(CurrentChunkMeshGfxAllocator());
 
     if (g_pending_chunk_mesh_uploads.count <= 0)
@@ -640,6 +621,9 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
 
     foreach (i, g_pending_chunk_mesh_uploads)
     {
+        if (num_uploaded >= max_uploads)
+            break;
+
         auto upload = g_pending_chunk_mesh_uploads[i];
 
         s64 vertices_size = upload.vertices.count * sizeof(BlockVertex);
@@ -665,12 +649,14 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass)
         upload.mesh->uploaded = true;
 
         ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
+        i -= 1;
         num_uploaded += 1;
     }
 
     FlushGfxAllocator(gfx_allocator);
 
-    LogMessage(Log_Graphics, "Uploaded %d chunks (%lld pending)", num_uploaded, g_pending_chunk_mesh_uploads.count);
+    float time_end = GetTimeInSeconds();
+    LogMessage(Log_Graphics, "Uploaded %d chunks (%lld pending) in %f s", num_uploaded, g_pending_chunk_mesh_uploads.count, time_end - time_start);
 }
 
 static GfxPipelineState g_post_processing_pipeline;
@@ -788,6 +774,69 @@ static void RecreateRenderTargets()
     }
 }
 
+void HandleChunkMeshGeneration(World *world)
+{
+    foreach (i, world->dirty_chunks)
+    {
+        auto chunk = world->dirty_chunks[i];
+        if (!chunk->is_generated)
+            continue;
+        if (chunk->east && !chunk->east->is_generated)
+            continue;
+        if (chunk->west && !chunk->west->is_generated)
+            continue;
+        if (chunk->north && !chunk->north->is_generated)
+            continue;
+        if (chunk->south && !chunk->south->is_generated)
+            continue;
+
+        auto work = Alloc<ChunkMeshWork>(heap);
+        work->chunk = chunk;
+        AddWork(&world->chunk_mesh_generation_thread_group, work);
+
+        ArrayOrderedRemoveAt(&world->dirty_chunks, i);
+        i -= 1;
+    }
+
+    auto generated_chunk_meshes = GetCompletedWork(&world->chunk_mesh_generation_thread_group);
+    foreach (i, generated_chunk_meshes)
+    {
+        auto work = (ChunkMeshWork *)generated_chunk_meshes[i];
+
+        work->chunk->mesh.vertex_count = (u32)work->vertices.count;
+        work->chunk->mesh.index_count = (u32)work->indices.count;
+
+        // Recreate buffers if they are too small
+        if (work->chunk->mesh.vertex_count * sizeof(BlockVertex) > (u64)GetDesc(&work->chunk->mesh.vertex_buffer).size)
+        {
+            if (!IsNull(&work->chunk->mesh.vertex_buffer))
+                GfxDestroyBuffer(&work->chunk->mesh.vertex_buffer);
+
+            GfxBufferDesc desc{};
+            desc.size = work->chunk->mesh.vertex_count * sizeof(BlockVertex);
+            desc.usage = GfxBufferUsage_VertexBuffer;
+            work->chunk->mesh.vertex_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Vertices", work->chunk->x, work->chunk->z), desc);
+            Assert(!IsNull(&work->chunk->mesh.vertex_buffer));
+        }
+
+        if (work->chunk->mesh.index_count * sizeof(u32) > (u64)GetDesc(&work->chunk->mesh.index_buffer).size)
+        {
+            if (!IsNull(&work->chunk->mesh.index_buffer))
+                GfxDestroyBuffer(&work->chunk->mesh.index_buffer);
+
+            GfxBufferDesc desc{};
+            desc.size = work->chunk->mesh.index_count * sizeof(u32);
+            desc.usage = GfxBufferUsage_IndexBuffer;
+            work->chunk->mesh.index_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Indices", work->chunk->x, work->chunk->z), desc);
+            Assert(!IsNull(&work->chunk->mesh.index_buffer));
+        }
+
+        AppendChunkMeshUpload(work->chunk, work->vertices, work->indices);
+
+        Free(work, heap);
+    }
+}
+
 void RenderGraphics(World *world)
 {
     FrameRenderContext ctx{};
@@ -803,16 +852,11 @@ void RenderGraphics(World *world)
 
     ResetGfxAllocator(FrameDataGfxAllocator());
 
-    // Generate dirty chunk meshes
-    foreach (i, world->dirty_chunks)
-    {
-        if (GenerateChunkMesh(world->dirty_chunks[i]))
-            ArrayOrderedRemoveAt(&world->dirty_chunks, i);
-    }
+    HandleChunkMeshGeneration(world);
 
     GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", ctx.cmd_buffer);
     {
-        UploadPendingChunkMeshes(&upload_pass);
+        UploadPendingChunkMeshes(&upload_pass, Max_Chunk_Upload_Per_Frame);
     }
     GfxEndCopyPass(&upload_pass);
 

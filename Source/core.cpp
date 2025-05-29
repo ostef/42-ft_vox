@@ -3,6 +3,7 @@
 
 #if defined(VOX_PLATFORM_POSIX)
 #include <unistd.h>
+#include <time.h>
 #endif
 
 void *HeapAllocator(AllocatorOp op, s64 size, void *ptr, void *data)
@@ -479,4 +480,12 @@ void *WorkerThreadRoutine(void *data)
     }
 
     return null;
+}
+
+float GetTimeInSeconds()
+{
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+
+    return (float)time.tv_sec + (float)time.tv_nsec * 1e-9;
 }

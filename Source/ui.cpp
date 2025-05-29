@@ -249,10 +249,10 @@ bool UINoiseParams(String id, NoiseParams *params)
 {
     NoiseParams old = *params;
     if (UIButton("-#scale"))
-        params->scale -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+        params->scale -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
     UISameLine();
     if (UIButton("+#scale"))
-        params->scale += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+        params->scale += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
     UISameLine();
     UIText(TPrintf("scale: %.3f", params->scale));
 
