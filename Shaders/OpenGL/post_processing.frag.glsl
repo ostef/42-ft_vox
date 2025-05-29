@@ -1,10 +1,12 @@
 #version 460
 
+#include "common.glsl"
+
 uniform sampler2D main_texture;
 
-in vec2 position;
+in float2 position;
 
-out vec4 frag_color;
+out float4 frag_color;
 
 void main()
 {

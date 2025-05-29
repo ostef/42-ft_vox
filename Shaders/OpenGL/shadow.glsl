@@ -1,16 +1,16 @@
 #define Shadow_Map_Num_Filtering_Samples_Sqrt 8
 #define Shadow_Map_Num_Filtering_Samples (Shadow_Map_Num_Filtering_Samples_Sqrt * Shadow_Map_Num_Filtering_Samples_Sqrt)
 
-int GetShadowCascadeIndex(in ShadowMap params, vec3 position, vec3 normal, out vec3 coords)
+int GetShadowCascadeIndex(in ShadowMap params, float3 position, float3 normal, out float3 coords)
 {
-    vec3 normal_offset = normal / float(params.resolution) * params.normal_bias;
+    float3 normal_offset = normal / float(params.resolution) * params.normal_bias;
 
     int cascade_index = 0;
     for (; cascade_index < Shadow_Map_Num_Cascades; cascade_index += 1)
     {
-        vec4 light_space_pos = params.cascade_matrices[cascade_index] * vec4(position + normal_offset, 1);
+        float4 light_space_pos = params.cascade_matrices[cascade_index] * float4(position + normal_offset, 1);
         coords = light_space_pos.xyz / light_space_pos.w;
-        coords.xy = coords.xy * 0.5 + vec2(0.5);
+        coords.xy = coords.xy * 0.5 + float2(0.5);
 
         if (coords.x > 0 && coords.x < 1
          && coords.y > 0 && coords.y < 1
@@ -23,25 +23,25 @@ int GetShadowCascadeIndex(in ShadowMap params, vec3 position, vec3 normal, out v
     return -1;
 }
 
-vec3 GetShadowCascadeColor(in ShadowMap params, vec3 position, vec3 normal)
+float3 GetShadowCascadeColor(in ShadowMap params, float3 position, float3 normal)
 {
-    vec3 coords;
+    float3 coords;
     int cascade_index = GetShadowCascadeIndex(params, position, normal, coords);
     if (cascade_index < 0)
-        return vec3(1);
+        return float3(1);
 
     return RandomColor((cascade_index + 1) * 1234.5678);
 }
 
 float SampleShadowMap(
     in ShadowMap params, in sampler2DArray noise, in sampler2DArrayShadow shadow_map,
-    vec3 light_direction, vec3 world_position, vec3 world_normal, vec2 screen_position
+    float3 light_direction, float3 world_position, float3 world_normal, float2 screen_position
 )
 {
-    vec2 shadow_map_texel_size = 1 / vec2(params.resolution, params.resolution);
-    vec2 noise_texel_size = 1 / vec2(params.noise_resolution, params.noise_resolution);
+    float2 shadow_map_texel_size = 1 / float2(params.resolution, params.resolution);
+    float2 noise_texel_size = 1 / float2(params.noise_resolution, params.noise_resolution);
 
-    vec3 coords;
+    float3 coords;
     int cascade_index = GetShadowCascadeIndex(params, world_position, world_normal, coords);
     if (cascade_index < 0)
         return 0;
@@ -54,8 +54,8 @@ float SampleShadowMap(
     depth_bias *= shadow_map_texel_size.x;
     depth_bias /= shadow_map_size / 20;
 
-    vec3 forward = vec3(0,0,1);
-    vec3 right = cross(world_normal, forward);
+    float3 forward = float3(0,0,1);
+    float3 right = cross(world_normal, forward);
     forward = cross(right, world_normal);
 
     float filter_radius = shadow_map_texel_size.x * params.filter_radius / shadow_map_size * 20;
@@ -65,13 +65,13 @@ float SampleShadowMap(
     {
         for (int x = 0; x < Shadow_Map_Num_Filtering_Samples_Sqrt; x += 1)
         {
-            vec3 noise_coords = vec3(screen_position * noise_texel_size, y * Shadow_Map_Num_Filtering_Samples_Sqrt + x);
+            float3 noise_coords = float3(screen_position * noise_texel_size, y * Shadow_Map_Num_Filtering_Samples_Sqrt + x);
 
-            vec2 offset = texture(noise, noise_coords).xy;
+            float2 offset = texture(noise, noise_coords).xy;
             offset *= filter_radius;
 
-            vec3 uvw = vec3(coords.xy + offset, cascade_index);
-            shadow_value += texture(shadow_map, vec4(uvw, coords.z - depth_bias));
+            float3 uvw = float3(coords.xy + offset, cascade_index);
+            shadow_value += texture(shadow_map, float4(uvw, coords.z - depth_bias));
         }
     }
 

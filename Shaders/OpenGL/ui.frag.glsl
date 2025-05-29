@@ -4,10 +4,10 @@
 
 uniform sampler2D ui_texture;
 
-in vec2 tex_coords;
-in vec4 color;
+in float2 tex_coords;
+in float4 color;
 
-out vec4 frag_color;
+out float4 frag_color;
 
 void main()
 {

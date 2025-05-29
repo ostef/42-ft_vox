@@ -1,6 +1,7 @@
 #version 460
 
 #include "common.glsl"
+#include "pbr.glsl"
 #include "shadow.glsl"
 
 layout(std140) uniform frame_info_buffer
@@ -15,22 +16,26 @@ layout(binding=2) uniform sampler2DArray shadow_map_noise;
 
 flat in Block block;
 flat in BlockFace block_face;
-in vec2 screen_position;
-in vec3 position;
-in vec3 normal;
-in vec2 tex_coords;
+in float2 screen_position;
+in float3 position;
+in float3 normal;
+in float2 tex_coords;
 
-out vec4 frag_color;
+out float4 frag_color;
 
 void main()
 {
-    float light_intensity = max(dot(normal, -frame_info.sun_direction), 0);
-    light_intensity *= 1 - SampleShadowMap(frame_info.shadow_map, shadow_map_noise, shadow_map, frame_info.sun_direction, position, normal, screen_position);
+    float3 N = normalize(normal);
+    float3 V = normalize(frame_info.camera.position - position);
+    float3 L = -frame_info.sun_direction;
 
-    vec3 base_color = texture(block_atlas, vec3(tex_coords, block_face)).rgb;
-    vec3 diffuse = base_color * light_intensity;
-    vec3 ambient = base_color * 0.3;
-    vec3 color = ambient + diffuse;
+    float sun_shadow = 1 - SampleShadowMap(frame_info.shadow_map, shadow_map_noise, shadow_map, frame_info.sun_direction, position, normal, screen_position);
+    vec3 sun_color = frame_info.sun_color.rgb * frame_info.sun_color.a;
 
-    frag_color = vec4(color,1);
+    float3 base_color = texture(block_atlas, float3(tex_coords, block_face)).rgb;
+    float3 brdf = CalculateBRDF(base_color, 0, 1, N, V, L, sun_color * sun_shadow);
+    float3 ambient = base_color * 0.3;
+    float3 color = ambient + brdf;
+
+    frag_color = float4(color,1);
 }

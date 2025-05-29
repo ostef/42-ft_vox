@@ -4,7 +4,6 @@
 
 #include <stb_image.h>
 
-#define Max_Chunk_Mesh_Generation_Per_Frame 50
 #define Max_Chunk_Upload_Per_Frame 50
 
 static GfxAllocator g_frame_data_allocators[Gfx_Max_Frames_In_Flight];
@@ -353,10 +352,15 @@ void RenderGraphics(World *world)
         .window_pixel_size={(float)window_w, (float)window_h},
         .window_scale_factor=1,
         .sun_direction=world->sun_direction,
+        .sun_color={1,1,1,2},
         .camera={
             .fov_in_degrees=world->camera.fov_in_degrees,
             .z_near_dist=world->camera.z_near_dist,
             .z_far_dist=world->camera.z_far_dist,
+            .position=TranslationVector(world->camera.transform),
+            .right=RightVector(world->camera.transform),
+            .up=UpVector(world->camera.transform),
+            .direction=ForwardVector(world->camera.transform),
             .transform=Transposed(world->camera.transform),
             .view=Transposed(world->camera.view),
             .projection=Transposed(world->camera.projection),

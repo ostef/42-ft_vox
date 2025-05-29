@@ -167,6 +167,14 @@ struct Std140Camera
     float z_near_dist;
     float z_far_dist;
     u32 _padding0 = 0;
+    Vec3f position;
+    u32 _padding1 = 0;
+    Vec3f right;
+    u32 _padding2 = 0;
+    Vec3f up;
+    u32 _padding3 = 0;
+    Vec3f direction;
+    u32 _padding4 = 0;
     Mat4f transform;
     Mat4f view;
     Mat4f projection;
@@ -191,6 +199,7 @@ struct Std140FrameInfo
     u32 _padding0 = 0;
     Vec3f sun_direction;
     u32 _padding1 = 0;
+    Vec4f sun_color;
     Std140Camera camera;
     Vec2f texture_atlas_size;
     Vec2f texture_block_size;
