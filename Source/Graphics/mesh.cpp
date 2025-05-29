@@ -204,6 +204,9 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
                 if (block == Block_Air)
                     continue;
 
+                BlockInfo info = Block_Infos[block];
+                float block_height = GetBlockHeight(chunk, block, x, y, z);
+
                 auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
                 auto west   = GetBlockInNeighbors(chunk, x - 1, y, z);
                 auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
@@ -212,20 +215,18 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
                 auto south  = GetBlockInNeighbors(chunk, x, y, z - 1);
 
                 BlockFaceFlags faces = 0;
-                if (east == Block_Air)
+                if (Block_Infos[east].mesh_id != info.mesh_id || GetBlockHeight(chunk, east, x + 1, y, z) != block_height)
                     faces |= BlockFaceFlag_East;
-                if (west == Block_Air)
+                if (Block_Infos[west].mesh_id != info.mesh_id || GetBlockHeight(chunk, west, x - 1, y, z) != block_height)
                     faces |= BlockFaceFlag_West;
-                if (top == Block_Air)
-                    faces |= BlockFaceFlag_Top;
-                if (bottom == Block_Air)
-                    faces |= BlockFaceFlag_Bottom;
-                if (north == Block_Air)
+                if (Block_Infos[north].mesh_id != info.mesh_id || GetBlockHeight(chunk, north, x, y, z + 1) != block_height)
                     faces |= BlockFaceFlag_North;
-                if (south == Block_Air)
+                if (Block_Infos[south].mesh_id != info.mesh_id || GetBlockHeight(chunk, south, x, y, z - 1) != block_height)
                     faces |= BlockFaceFlag_South;
-
-                float block_height = 1.0; //block == Block_Water ? 15 / 16.0 : 1.0;
+                if (Block_Infos[top].mesh_id != info.mesh_id || block_height != 1)
+                    faces |= BlockFaceFlag_Top;
+                if (Block_Infos[bottom].mesh_id != info.mesh_id || GetBlockHeight(chunk, bottom, x, y - 1, z) != block_height)
+                    faces |= BlockFaceFlag_Bottom;
 
                 PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
             }

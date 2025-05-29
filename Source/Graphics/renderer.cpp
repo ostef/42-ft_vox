@@ -57,7 +57,7 @@ static void LoadBlockAtlasTexture()
 
     for (int i = 1; i < Block_Count; i += 1)
     {
-        String name = Block_Names[i];
+        String name = Block_Infos[i].name;
         String filename = TPrintf("Data/Blocks/%.*s.png", FSTR(name));
         String filename_top = TPrintf("Data/Blocks/%.*s_top.png", FSTR(name));
         String filename_bottom = TPrintf("Data/Blocks/%.*s_bottom.png", FSTR(name));

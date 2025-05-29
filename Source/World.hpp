@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.hpp"
+#include "Blocks.hpp"
 #include "Graphics.hpp"
 #include "Graphics/Renderer.hpp"
 
@@ -77,25 +78,6 @@ static inline Slice<NoiseParams> GetAllNoiseParams(World *world)
     return {.count=4, .data=&world->density_params};
 }
 
-enum Block : u8
-{
-    Block_Air,
-    Block_Stone,
-    Block_Dirt,
-    Block_Grass,
-    Block_Water,
-
-    Block_Count,
-};
-
-static const char *Block_Names[] = {
-    "air",
-    "stone",
-    "dirt",
-    "grass",
-    "water",
-};
-
 struct Chunk
 {
     s16 x, z;
@@ -118,6 +100,7 @@ struct Chunk
 
 Block GetBlock(Chunk *chunk, int x, int y, int z);
 Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z);
+float GetBlockHeight(Chunk *chunk, Block block, int x, int y, int z);
 
 void SetDefaultNoiseParams(World *world);
 void InitWorld(World *world, u32 seed);

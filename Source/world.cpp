@@ -84,6 +84,15 @@ Block GetBlockInNeighbors(Chunk *chunk, int x, int y, int z)
     return GetBlock(chunk, x, y, z);
 }
 
+float GetBlockHeight(Chunk *chunk, Block block, int x, int y, int z)
+{
+    Block above = GetBlockInNeighbors(chunk, x, y + 1, z);
+    if (block == Block_Water && above != Block_Water)
+        return 14 / 16.0;
+
+    return 1;
+}
+
 void SetDefaultNoiseParams(World *world)
 {
     world->density_params = {};
@@ -373,7 +382,7 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
 
                 if (density + density_bias > 0)
                     chunk->blocks[index] = Block_Stone;
-                else if (iy == Water_Level)
+                else if (iy <= Water_Level)
                     chunk->blocks[index] = Block_Water;
                 else
                     chunk->blocks[index] = Block_Air;
