@@ -260,40 +260,40 @@ bool UIButton(String id)
     return hovered && IsMouseButtonReleased(MouseButton_Left);
 }
 
-bool UIFloatEdit(String id, float *value, float min, float max)
+bool UIFloatEdit(String id, float *value, float min, float max, float step)
 {
     float old_value = *value;
 
     if (UIButton(TPrintf("-#%.*s", FSTR(id))))
-        *value -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
+        *value -= step * (IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.1 : IsKeyDown(SDL_SCANCODE_LALT) ? 10.0 : 1.0);
     UISameLine();
     if (UIButton(TPrintf("+#%.*s", FSTR(id))))
-        *value += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
+        *value += step * (IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.1 : IsKeyDown(SDL_SCANCODE_LALT) ? 10.0 : 1.0);
     UISameLine();
+
+    *value = Clamp(*value, min, max);
 
     String text = GetIdText(id);
     UIText(TPrintf("%.*s: %.3f", FSTR(text), *value));
 
-    *value = Clamp(*value, min, max);
-
     return old_value != *value;
 }
 
-bool UIIntEdit(String id, int *value, int min, int max)
+bool UIIntEdit(String id, int *value, int min, int max, int step)
 {
     int old_value = *value;
 
     if (UIButton(TPrintf("-#%.*s", FSTR(id))))
-        *value -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1;
+        *value -= step * (IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1);
     UISameLine();
     if (UIButton(TPrintf("+#%.*s", FSTR(id))))
-        *value += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1;
+        *value += step * (IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1);
     UISameLine();
+
+    *value = Clamp(*value, min, max);
 
     String text = GetIdText(id);
     UIText(TPrintf("%.*s: %d", FSTR(text), *value));
-
-    *value = Clamp(*value, min, max);
 
     return old_value != *value;
 }
@@ -316,9 +316,54 @@ struct SplineEditor
     float max_x = 1;
     float min_y = 0;
     float max_y = 1;
+    int selected_point = 0;
 };
 
-bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y, float max_y)
+static void RecalculateMinMax(SplineEditor *editor, float min_x, float max_x, float min_y, float max_y)
+{
+    static const int Resolution = 10;
+
+    if (!editor->spline)
+        return;
+
+    editor->min_x = INFINITY;
+    editor->max_x = -INFINITY;
+    editor->min_y = INFINITY;
+    editor->max_y = -INFINITY;
+
+    if (min_x != INFINITY && max_x != INFINITY)
+    {
+        editor->min_x = min_x;
+        editor->max_x = max_x;
+    }
+    else
+    {
+        for (int i = 0; i < editor->spline->num_points; i += 1)
+        {
+            editor->min_x = Min(editor->min_x, editor->spline->points[i].x);
+            editor->max_x = Max(editor->max_x, editor->spline->points[i].x);
+        }
+    }
+
+    if (min_y != INFINITY && max_y != INFINITY)
+    {
+        editor->min_y = min_y;
+        editor->max_y = max_y;
+    }
+    else
+    {
+        int iterations = editor->spline->num_points * Resolution;
+        for (int i = 0; i < iterations; i += 1)
+        {
+            float t = Lerp(editor->min_x, editor->max_x, i / (float)(iterations - 1));
+            float y = SampleSpline(editor->spline, t);
+            editor->min_y = Min(editor->min_y, y);
+            editor->max_y = Max(editor->max_y, y);
+        }
+    }
+}
+
+bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float max_x, float min_y, float max_y, float step_x, float step_y)
 {
     static SplineEditor editor;
     static const int Resolution = 10;
@@ -326,33 +371,8 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y, float ma
     if (editor.spline != spline)
     {
         editor.spline = spline;
-        editor.min_x = INFINITY;
-        editor.max_x = -INFINITY;
-        editor.min_y = INFINITY;
-        editor.max_y = -INFINITY;
-
-        for (int i = 0; i < spline->num_points; i += 1)
-        {
-            editor.min_x = Min(editor.min_x, spline->points[i].x);
-            editor.max_x = Max(editor.max_x, spline->points[i].x);
-        }
-
-        if (min_y == INFINITY || max_y == INFINITY)
-        {
-            int iterations = spline->num_points * Resolution;
-            for (int i = 0; i < iterations; i += 1)
-            {
-                float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
-                float y = SampleSpline(spline, t);
-                editor.min_y = Min(editor.min_y, y);
-                editor.max_y = Max(editor.max_y, y);
-            }
-        }
-        else
-        {
-            editor.min_y = min_y;
-            editor.max_y = max_y;
-        }
+        editor.selected_point = 0;
+        RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
     }
 
     UIText(id);
@@ -395,10 +415,10 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y, float ma
         float y = InverseLerp(editor.min_y, editor.max_y, spline->points[i].y);
 
         UIRectElement dot = {};
-        dot.size = {5, 5};
+        dot.size = i == editor.selected_point ? Vec2f{8, 8} : Vec2f{5, 5};
         dot.position = bg.position + Vec2f{x * size.x, size.y - y * size.y};
         dot.position -= dot.size * 0.5;
-        dot.color = {1, 0.863, 0.141, 1};
+        dot.color = i == editor.selected_point ? Vec4f{0.404, 1, 0.196, 1} : Vec4f{1, 0.863, 0.141, 1};
         ArrayPush(&g_ui_elements, dot);
     }
 
@@ -417,7 +437,85 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y, float ma
         UITextAt(text_bg.position + Vec2f{2, 2}, text);
     }
 
-    return false;
+    bool modified = false;
+
+    if (UIButton(TPrintf("<#%.*s", FSTR(id))))
+    {
+        editor.selected_point -= 1;
+        if (editor.selected_point < 0)
+            editor.selected_point = Max(spline->num_points - 1, 0);
+    }
+
+    UISameLine();
+    UIText(TPrintf("%d", editor.selected_point));
+    UISameLine();
+
+    if (UIButton(TPrintf(">#%.*s", FSTR(id))))
+    {
+        editor.selected_point += 1;
+        if (editor.selected_point >= spline->num_points)
+            editor.selected_point = 0;
+    }
+
+    UISameLine();
+
+    if (UIButton("Add"))
+    {
+        if (spline->num_points > 0)
+        {
+            auto p = spline->points[editor.selected_point];
+            int new_index = AddPoint(spline, p.x, p.y, p.derivative);
+            if (new_index >= 0)
+                editor.selected_point = new_index;
+        }
+        else
+        {
+            editor.selected_point = AddPoint(spline, editor.min_x, editor.min_y, 0);
+        }
+
+        modified = true;
+    }
+
+    UISameLine();
+
+    if (UIButton("Remove"))
+    {
+        if (spline->num_points > 0)
+        {
+            RemovePoint(spline, editor.selected_point);
+            modified = true;
+        }
+    }
+
+    if (spline->num_points > 0)
+    {
+        auto selected_point = &spline->points[editor.selected_point];
+        float selected_point_min_x = editor.selected_point == 0 ? editor.min_x - step_x * 10 : spline->points[editor.selected_point - 1].x;
+        float selected_point_max_x = editor.selected_point == spline->num_points - 1 ? editor.max_x + step_x * 10 : spline->points[editor.selected_point + 1].x;
+        if (UIFloatEdit("X", &selected_point->x, selected_point_min_x, selected_point_max_x, step_x))
+        {
+            RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
+            modified = true;
+        }
+
+        UISameLine();
+
+        if (UIFloatEdit("Y", &selected_point->y, editor.min_y - 1, editor.max_y + 1, step_y))
+        {
+            RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
+            modified = true;
+        }
+
+        UISameLine();
+
+        if (UIFloatEdit("dX/dY", &selected_point->derivative, -1000, 1000))
+        {
+            RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
+            modified = true;
+        }
+    }
+
+    return modified;
 }
 
 static void PushRect(Array<UIVertex> *vertices, UIRectElement elem, int window_w, int window_h)

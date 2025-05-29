@@ -646,20 +646,34 @@ Mat4f Mul(const Mat4f &a, const Mat4f &b)
     return result;
 }
 
-bool AddPoint(Spline *spline, float x, float y, float derivative)
+int AddPoint(Spline *spline, float x, float y, float derivative)
 {
     return AddPoint(spline, {x, y, derivative});
 }
 
-bool AddPoint(Spline *spline, SplinePoint point)
+int AddPoint(Spline *spline, SplinePoint point)
 {
     if (spline->num_points >= Spline_Max_Points)
-        return false;
+        return -1;
 
-    spline->points[spline->num_points] = point;
+    int index = 0;
+    while (index < spline->num_points)
+    {
+        if (spline->points[index].x > point.x)
+            break;
+
+        index += 1;
+    }
+
+    for (int i = spline->num_points; i > index; i -= 1)
+    {
+        spline->points[i] = spline->points[i - 1];
+    }
+
+    spline->points[index] = point;
     spline->num_points += 1;
 
-    return true;
+    return index;
 }
 
 void RemovePoint(Spline *spline, int index)

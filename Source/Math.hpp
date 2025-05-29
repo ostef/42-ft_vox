@@ -331,7 +331,7 @@ void PerlinGenerateOffsets(RNG *rng, Slice<Vec3f> *offsets);
 float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, float y);
 float PerlinFractalNoise(NoiseParams params, Slice<Vec3f> offsets, float x, float y, float z);
 
-#define Spline_Max_Points 10
+#define Spline_Max_Points 20
 
 struct SplinePoint
 {
@@ -346,7 +346,7 @@ struct Spline
     int num_points = 0;
 };
 
-bool AddPoint(Spline *spline, float x, float y, float derivative);
-bool AddPoint(Spline *spline, SplinePoint point);
+int AddPoint(Spline *spline, float x, float y, float derivative);
+int AddPoint(Spline *spline, SplinePoint point);
 void RemovePoint(Spline *spline, int index);
 float SampleSpline(Spline *spline, float t);
