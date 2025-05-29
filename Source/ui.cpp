@@ -366,7 +366,7 @@ static void RecalculateMinMax(SplineEditor *editor, float min_x, float max_x, fl
 bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float max_x, float min_y, float max_y, float step_x, float step_y)
 {
     static SplineEditor editor;
-    static const int Resolution = 10;
+    static const int Resolution = 20;
 
     if (editor.spline != spline)
     {
@@ -393,7 +393,7 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float ma
         float y = SampleSpline(spline, x);
 
         UIRectElement dot = {};
-        dot.size = {3, 3};
+        dot.size = {2, 2};
         dot.position = bg.position + Vec2f{t * size.x, size.y - InverseLerp(editor.min_y, editor.max_y, y) * size.y};
         dot.position -= dot.size * 0.5;
         dot.color = {1,1,1,1};
@@ -483,6 +483,8 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float ma
         if (spline->num_points > 0)
         {
             RemovePoint(spline, editor.selected_point);
+            editor.selected_point = Min(editor.selected_point, spline->num_points - 1);
+            editor.selected_point = Max(editor.selected_point, 0);
             modified = true;
         }
     }
@@ -498,9 +500,13 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float ma
             modified = true;
         }
 
-        UISameLine();
-
         if (UIFloatEdit("Y", &selected_point->y, editor.min_y - 1, editor.max_y + 1, step_y))
+        {
+            RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
+            modified = true;
+        }
+
+        if (UIFloatEdit("dX/dY", &selected_point->derivative, -1000, 1000))
         {
             RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
             modified = true;
@@ -508,8 +514,9 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float ma
 
         UISameLine();
 
-        if (UIFloatEdit("dX/dY", &selected_point->derivative, -1000, 1000))
+        if (UIButton(TPrintf("Reset#derivative_%.*s", FSTR(id))))
         {
+            selected_point->derivative = 0;
             RecalculateMinMax(&editor, min_x, max_x, min_y, max_y);
             modified = true;
         }
