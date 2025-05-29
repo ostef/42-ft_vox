@@ -109,7 +109,7 @@ void SetDefaultNoiseParams(World *world)
     AddPoint(&world->continentalness_spline, 0.4, Water_Level + 20, 0);
     AddPoint(&world->continentalness_spline, 0.5, Water_Level + 50, 0);
     AddPoint(&world->continentalness_spline, 0.7, Water_Level + 60, 0);
-    AddPoint(&world->continentalness_spline, 1.0, Water_Level + 70, 0);
+    AddPoint(&world->continentalness_spline, 1, Water_Level + 70, 0);
 }
 
 static void GenerateChunkWorker(ThreadGroup *group, void *work);
@@ -121,7 +121,7 @@ void InitWorld(World *world, u32 seed)
 
     world->seed = seed;
 
-    world->camera.position.y = 140;
+    world->camera.position.y = Water_Level + 5;
 
     world->chunks_by_position.allocator = heap;
     world->chunks_by_position.Compare = CompareChunkKeys;

@@ -205,7 +205,7 @@ int main(int argc, char **args)
         if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1))
             regenerate = true;
 
-        if (UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}))
+        if (UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}, 0, Chunk_Height))
             regenerate = true;
 
         if (regenerate)

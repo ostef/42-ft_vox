@@ -701,7 +701,7 @@ float SampleSpline(Spline *spline, float t)
 
         auto p = spline->points[index];
 
-        return t + p.derivative * (t - p.x);
+        return p.y + p.derivative * (t - p.x);
     }
 
     auto p0 = spline->points[index - 1];

@@ -94,6 +94,15 @@ void UISetCursorStart(float x, float y)
     g_ui_cursor = {x, y};
 }
 
+static bool IsHovered(UIRectElement elem)
+{
+    Vec2f mouse_pos = GetMousePosition();
+
+    return g_ui_has_mouse
+        && mouse_pos.x > elem.position.x && mouse_pos.x < elem.position.x + elem.size.x
+        && mouse_pos.y > elem.position.y && mouse_pos.y < elem.position.y + elem.size.y;
+}
+
 static Vec2f LayoutElem(Vec2f size)
 {
     if (!g_ui_same_line)
@@ -239,10 +248,7 @@ bool UIButton(String id)
     bg.position = LayoutElem(size);
     bg.color = {0, 0, 0, 1};
 
-    Vec2f mouse_pos = GetMousePosition();
-    bool hovered = g_ui_has_mouse
-        && mouse_pos.x > bg.position.x && mouse_pos.x < bg.position.x + bg.size.x
-        && mouse_pos.y > bg.position.y && mouse_pos.y < bg.position.y + bg.size.y;
+    bool hovered = IsHovered(bg);
 
     if (hovered)
         bg.color = {0.4, 0.4, 0.4, 1};
@@ -312,7 +318,7 @@ struct SplineEditor
     float max_y = 1;
 };
 
-bool UISplineEditor(String id, Spline *spline, Vec2f size)
+bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y, float max_y)
 {
     static SplineEditor editor;
     static const int Resolution = 10;
@@ -331,15 +337,25 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size)
             editor.max_x = Max(editor.max_x, spline->points[i].x);
         }
 
-        int iterations = spline->num_points * Resolution;
-        for (int i = 0; i < iterations; i += 1)
+        if (min_y == INFINITY || max_y == INFINITY)
         {
-            float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
-            float y = SampleSpline(spline, t);
-            editor.min_y = Min(editor.min_y, y);
-            editor.max_y = Max(editor.max_y, y);
+            int iterations = spline->num_points * Resolution;
+            for (int i = 0; i < iterations; i += 1)
+            {
+                float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
+                float y = SampleSpline(spline, t);
+                editor.min_y = Min(editor.min_y, y);
+                editor.max_y = Max(editor.max_y, y);
+            }
+        }
+        else
+        {
+            editor.min_y = min_y;
+            editor.max_y = max_y;
         }
     }
+
+    UIText(id);
 
     UIRectElement bg = {};
     bg.size = size;
@@ -347,19 +363,58 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size)
     bg.color = {0, 0, 0, 0.3};
     ArrayPush(&g_ui_elements, bg);
 
+    bool point_is_hovered = false;
+    float hovered_x, hovered_y;
     int iterations = spline->num_points * Resolution;
     for (int i = 0; i < iterations; i += 1)
     {
-        float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
-        float y = SampleSpline(spline, t);
-        y = InverseLerp(editor.min_y, editor.max_y, y);
-        float x = i / (float)(iterations - 1);
+        float t = i / (float)(iterations - 1);
+        float x = Lerp(editor.min_x, editor.max_x, t);
+        float y = SampleSpline(spline, x);
 
         UIRectElement dot = {};
-        dot.size = {2, 2};
-        dot.position = bg.position + Vec2f{x * size.x, size.y - y * size.y};
+        dot.size = {3, 3};
+        dot.position = bg.position + Vec2f{t * size.x, size.y - InverseLerp(editor.min_y, editor.max_y, y) * size.y};
+        dot.position -= dot.size * 0.5;
         dot.color = {1,1,1,1};
         ArrayPush(&g_ui_elements, dot);
+
+        dot.size += {4, 4};
+        dot.position -= Vec2f{2,2};
+        if (!point_is_hovered && IsHovered(dot))
+        {
+            point_is_hovered = true;
+            hovered_x = x;
+            hovered_y = y;
+        }
+    }
+
+    for (int i = 0; i < spline->num_points; i += 1)
+    {
+        float x = InverseLerp(editor.min_x, editor.max_x, spline->points[i].x);
+        float y = InverseLerp(editor.min_y, editor.max_y, spline->points[i].y);
+
+        UIRectElement dot = {};
+        dot.size = {5, 5};
+        dot.position = bg.position + Vec2f{x * size.x, size.y - y * size.y};
+        dot.position -= dot.size * 0.5;
+        dot.color = {1, 0.863, 0.141, 1};
+        ArrayPush(&g_ui_elements, dot);
+    }
+
+    if (point_is_hovered)
+    {
+        float x = InverseLerp(editor.min_x, editor.max_x, hovered_x);
+        float y = InverseLerp(editor.min_y, editor.max_y, hovered_y);
+        auto text = TPrintf("%.2f %.2f", hovered_x, hovered_y);
+
+        UIRectElement text_bg = {};
+        text_bg.size = CalculateTextSize(text) + Vec2f{4, 4};
+        text_bg.position = bg.position + Vec2f{x * size.x, size.y - y * size.y} + Vec2f{10, -10};
+        text_bg.color = {0,0,0,0.6};
+        ArrayPush(&g_ui_elements, text_bg);
+
+        UITextAt(text_bg.position + Vec2f{2, 2}, text);
     }
 
     return false;

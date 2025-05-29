@@ -18,4 +18,4 @@ bool UIButton(String id);
 bool UIFloatEdit(String id, float *value, float min, float max);
 bool UIIntEdit(String id, int *value, int min, int max);
 bool UINoiseParams(String id, NoiseParams *params);
-bool UISplineEditor(String id, Spline *spline, Vec2f size);
+bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_y = INFINITY, float max_y = INFINITY);

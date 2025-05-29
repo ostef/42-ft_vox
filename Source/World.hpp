@@ -43,7 +43,7 @@ struct Camera
 
 void UpdateCamera(Camera *camera);
 
-#define Water_Level 127
+#define Water_Level (Chunk_Height - 100)
 
 struct World
 {
