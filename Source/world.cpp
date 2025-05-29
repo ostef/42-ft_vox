@@ -159,6 +159,9 @@ void InitWorld(World *world, u32 seed)
 
 void DestroyWorld(World *world)
 {
+    Stop(&world->chunk_generation_thread_group);
+    Stop(&world->chunk_mesh_generation_thread_group);
+
     while (world->all_chunks.count > 0)
         DestroyChunk(world, world->all_chunks[0]);
 
