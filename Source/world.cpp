@@ -101,6 +101,15 @@ void SetDefaultNoiseParams(World *world)
     world->peaks_and_valleys_params = {};
     world->peaks_and_valleys_params.scale = 0.05;
     world->peaks_and_valleys_params.octaves = 3;
+
+    world->continentalness_spline = {};
+    AddPoint(&world->continentalness_spline, -1, Water_Level - 20, 0);
+    AddPoint(&world->continentalness_spline, 0, Water_Level - 20, 0);
+    AddPoint(&world->continentalness_spline, 0.2, Water_Level + 20, 0);
+    AddPoint(&world->continentalness_spline, 0.4, Water_Level + 20, 0);
+    AddPoint(&world->continentalness_spline, 0.5, Water_Level + 50, 0);
+    AddPoint(&world->continentalness_spline, 0.7, Water_Level + 60, 0);
+    AddPoint(&world->continentalness_spline, 1.0, Water_Level + 70, 0);
 }
 
 static void GenerateChunkWorker(ThreadGroup *group, void *work);
@@ -287,7 +296,7 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
             float peaks_and_valleys = PerlinFractalNoise(world->peaks_and_valleys_params, world->peaks_and_valleys_offsets, perlin_x, perlin_z);
             peaks_and_valleys = Abs(peaks_and_valleys);
 
-            chunk->continentalness_values[surface_index] = continentalness;
+            chunk->continentalness_values[surface_index] = SampleSpline(&world->continentalness_spline, continentalness);
             chunk->erosion_values[surface_index] = erosion;
             chunk->peaks_and_valleys_values[surface_index] = peaks_and_valleys;
         }
@@ -309,18 +318,19 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
                 float continentalness = chunk->continentalness_values[surface_index];
                 float erosion = chunk->erosion_values[surface_index];
                 float peaks_and_valleys = chunk->peaks_and_valleys_values[surface_index];
+                float base_height = continentalness;
 
                 // Apply erosion above water level
-                if (continentalness > 0)
-                    continentalness *= 1 - erosion;
-
-                float base_height = 127 + continentalness * 20;
+                // if (base_height > Water_Level)
+                //     base_height *= 1 - erosion;
 
                 float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y, perlin_z);
                 float density_bias = (base_height - iy) * squashing_factor * squashing_factor;
 
                 if (density + density_bias > 0)
                     chunk->blocks[index] = Block_Stone;
+                else if (iy < Water_Level)
+                    chunk->blocks[index] = Block_Water;
                 else
                     chunk->blocks[index] = Block_Air;
             }

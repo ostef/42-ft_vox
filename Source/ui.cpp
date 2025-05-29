@@ -13,11 +13,12 @@ struct UIVertex
 
 struct UIRectElement
 {
-    Vec2f position;
-    Vec2f size;
-    GfxTexture *texture;
-    Vec4f color;
-    Vec2f uv0, uv1;
+    Vec2f position = {};
+    Vec2f size = {};
+    GfxTexture *texture = null;
+    Vec4f color = {};
+    Vec2f uv0 = {};
+    Vec2f uv1 = {1,1};
 };
 
 #define UI_Font_Char_Width 6
@@ -133,6 +134,21 @@ static Vec2f CalculateTextSize(String text)
     return {w, y + UI_Font_Char_Height * 2.0f};
 }
 
+static String GetIdText(String id)
+{
+    String text = id;
+    for (int i = 0; i < text.length; i += 1)
+    {
+        if (text[i] == '#')
+        {
+            text.length = i;
+            break;
+        }
+    }
+
+    return text;
+}
+
 void UISameLine()
 {
     g_ui_same_line = true;
@@ -155,6 +171,7 @@ void UIImage(GfxTexture *texture, Vec2f size, Vec2f uv0, Vec2f uv1)
 
 void UIText(String text)
 {
+    text = GetIdText(text);
     Vec2f text_size = CalculateTextSize(text);
     Vec2f position = LayoutElem(text_size);
     UITextAt(position, text);
@@ -212,15 +229,7 @@ void UITextAt(Vec2f position, String text)
 
 bool UIButton(String id)
 {
-    String text = id;
-    for (int i = 0; i < text.length; i += 1)
-    {
-        if (text[i] == '#')
-        {
-            text.length = i;
-            break;
-        }
-    }
+    String text = GetIdText(id);
 
     float padding = UI_Button_Padding;
     Vec2f size = CalculateTextSize(text) + Vec2f{2 * padding, 2 * padding};
@@ -245,29 +254,115 @@ bool UIButton(String id)
     return hovered && IsMouseButtonReleased(MouseButton_Left);
 }
 
+bool UIFloatEdit(String id, float *value, float min, float max)
+{
+    float old_value = *value;
+
+    if (UIButton(TPrintf("-#%.*s", FSTR(id))))
+        *value -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
+    UISameLine();
+    if (UIButton(TPrintf("+#%.*s", FSTR(id))))
+        *value += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
+    UISameLine();
+
+    String text = GetIdText(id);
+    UIText(TPrintf("%.*s: %.3f", FSTR(text), *value));
+
+    *value = Clamp(*value, min, max);
+
+    return old_value != *value;
+}
+
+bool UIIntEdit(String id, int *value, int min, int max)
+{
+    int old_value = *value;
+
+    if (UIButton(TPrintf("-#%.*s", FSTR(id))))
+        *value -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1;
+    UISameLine();
+    if (UIButton(TPrintf("+#%.*s", FSTR(id))))
+        *value += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 10 : 1;
+    UISameLine();
+
+    String text = GetIdText(id);
+    UIText(TPrintf("%.*s: %d", FSTR(text), *value));
+
+    *value = Clamp(*value, min, max);
+
+    return old_value != *value;
+}
+
 bool UINoiseParams(String id, NoiseParams *params)
 {
     NoiseParams old = *params;
-    if (UIButton("-#scale"))
-        params->scale -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
-    UISameLine();
-    if (UIButton("+#scale"))
-        params->scale += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.001 : IsKeyDown(SDL_SCANCODE_LALT) ? 0.1 : 0.01;
-    UISameLine();
-    UIText(TPrintf("scale: %.3f", params->scale));
-
-    if (UIButton("-#octaves"))
-        params->octaves -= 1;
-    UISameLine();
-    if (UIButton("+#octaves"))
-        params->octaves += 1;
-    params->octaves = Clamp(params->octaves, 1, Perlin_Fractal_Max_Octaves);
-    UISameLine();
-    UIText(TPrintf("octaves: %d", params->octaves));
+    UIFloatEdit("scale", &params->scale, -1000, 1000);
+    UIIntEdit("octaves", &params->octaves, 1, Perlin_Fractal_Max_Octaves);
 
     params->max_amplitude = PerlinFractalMax(params->octaves, params->persistance);
 
     return memcmp(&old, params, sizeof(NoiseParams)) != 0;
+}
+
+struct SplineEditor
+{
+    Spline *spline = null;
+    float min_x = 0;
+    float max_x = 1;
+    float min_y = 0;
+    float max_y = 1;
+};
+
+bool UISplineEditor(String id, Spline *spline, Vec2f size)
+{
+    static SplineEditor editor;
+    static const int Resolution = 10;
+
+    if (editor.spline != spline)
+    {
+        editor.spline = spline;
+        editor.min_x = INFINITY;
+        editor.max_x = -INFINITY;
+        editor.min_y = INFINITY;
+        editor.max_y = -INFINITY;
+
+        for (int i = 0; i < spline->num_points; i += 1)
+        {
+            editor.min_x = Min(editor.min_x, spline->points[i].x);
+            editor.max_x = Max(editor.max_x, spline->points[i].x);
+        }
+
+        int iterations = spline->num_points * Resolution;
+        for (int i = 0; i < iterations; i += 1)
+        {
+            float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
+            float y = SampleSpline(spline, t);
+            editor.min_y = Min(editor.min_y, y);
+            editor.max_y = Max(editor.max_y, y);
+        }
+    }
+
+    UIRectElement bg = {};
+    bg.size = size;
+    bg.position = LayoutElem(size);
+    bg.color = {0, 0, 0, 0.3};
+    ArrayPush(&g_ui_elements, bg);
+
+    int iterations = spline->num_points * Resolution;
+    for (int i = 0; i < iterations; i += 1)
+    {
+        float t = Lerp(editor.min_x, editor.max_x, i / (float)(iterations - 1));
+        float y = SampleSpline(spline, t);
+        y = InverseLerp(editor.min_y, editor.max_y, y);
+        float x = i / (float)(iterations - 1);
+
+        UIRectElement dot = {};
+        dot.size = {2, 2};
+        dot.position = bg.position + Vec2f{x * size.x, size.y - y * size.y};
+        dot.color = {1,1,1,1};
+        ArrayPush(&g_ui_elements, dot);
+    }
+
+    return false;
 }
 
 static void PushRect(Array<UIVertex> *vertices, UIRectElement elem, int window_w, int window_h)

@@ -43,7 +43,7 @@ struct Camera
 
 void UpdateCamera(Camera *camera);
 
-#define Spline_Max_Points 6
+#define Water_Level 127
 
 struct World
 {
@@ -61,6 +61,7 @@ struct World
     NoiseParams continentalness_params = {};
     NoiseParams erosion_params = {};
     NoiseParams peaks_and_valleys_params = {};
+    Spline continentalness_spline = {};
 
     Slice<Vec3f> density_offsets = {};
     Slice<Vec2f> continentalness_offsets = {};

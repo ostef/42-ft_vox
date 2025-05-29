@@ -111,6 +111,10 @@ int main(int argc, char **args)
 
     GfxTexture noise_texture = {};
 
+    Spline spline = {};
+    AddPoint(&spline, {.x=0, .y=0, .derivative=1});
+    AddPoint(&spline, {.x=1, .y=0, .derivative=-1});
+
     int current_params = 1;
     bool quit = false;
     while(!quit)
@@ -198,20 +202,11 @@ int main(int argc, char **args)
 
         UIImage(&noise_texture, {200, 200});
 
-        if (UIButton("-#squashing_factor"))
-        {
-            squashing_factor -= IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+        if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1))
             regenerate = true;
-        }
-        UISameLine();
-        if (UIButton("+#squashing_factor"))
-        {
-            squashing_factor += IsKeyDown(SDL_SCANCODE_LSHIFT) ? 0.01 : 0.1;
+
+        if (UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}))
             regenerate = true;
-        }
-        UISameLine();
-        squashing_factor = Clamp(squashing_factor, 0, 1);
-        UIText(TPrintf("squashing_factor: %.2f", squashing_factor));
 
         if (regenerate)
         {

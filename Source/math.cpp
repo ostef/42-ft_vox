@@ -645,3 +645,67 @@ Mat4f Mul(const Mat4f &a, const Mat4f &b)
 
     return result;
 }
+
+bool AddPoint(Spline *spline, float x, float y, float derivative)
+{
+    return AddPoint(spline, {x, y, derivative});
+}
+
+bool AddPoint(Spline *spline, SplinePoint point)
+{
+    if (spline->num_points >= Spline_Max_Points)
+        return false;
+
+    spline->points[spline->num_points] = point;
+    spline->num_points += 1;
+
+    return true;
+}
+
+void RemovePoint(Spline *spline, int index)
+{
+    Assert(index >= 0 && index < spline->num_points);
+
+    for (int i = index; i < spline->num_points - 1; i += 1)
+        spline->points[i] = spline->points[i + 1];
+
+    spline->num_points -= 1;
+}
+
+static float HermiteCubic(SplinePoint p0, SplinePoint p1, float t)
+{
+    float f8 = p0.derivative * (p1.x - p0.x) - (p1.y - p0.y);
+    float f9 = -p1.derivative * (p1.x - p0.x) + (p1.y - p0.y);
+
+    return Lerp(p0.y, p1.y, t) + t * (1 - t) * Lerp(f8, f9, t);
+}
+
+float SampleSpline(Spline *spline, float t)
+{
+    if (spline->num_points <= 0)
+        return 0;
+
+    int index = 0;
+    while (index < spline->num_points)
+    {
+        if (spline->points[index].x >= t)
+            break;
+
+        index += 1;
+    }
+
+    if (index == 0 || index == spline->num_points)
+    {
+        if (index != 0)
+            index -= 1;
+
+        auto p = spline->points[index];
+
+        return t + p.derivative * (t - p.x);
+    }
+
+    auto p0 = spline->points[index - 1];
+    auto p1 = spline->points[index];
+
+    return HermiteCubic(p0, p1, InverseLerp(p0.x, p1.x, t));
+}
