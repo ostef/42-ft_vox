@@ -323,6 +323,7 @@ struct NoiseParams
     float persistance = 0.5; // By how much is amplitude multiplied for each octave (except the first)
     float lacunarity = 2.0; // By how much is frequency multiplied for each octave (exept the first)
     float max_amplitude = 1.0; // Calculate using PerlinFractalMax
+    float final_amplitude = 1.0;
 };
 
 float PerlinFractalMax(int octaves, float persistance);

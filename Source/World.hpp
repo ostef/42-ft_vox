@@ -53,6 +53,7 @@ struct World
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
     Array<Chunk *> all_chunks = {};
     Array<Chunk *> dirty_chunks = {};
+    int num_generated_chunks = 0;
 
     ThreadGroup chunk_generation_thread_group = {};
     ThreadGroup chunk_mesh_generation_thread_group = {};
@@ -62,6 +63,7 @@ struct World
     NoiseParams erosion_params = {};
     NoiseParams peaks_and_valleys_params = {};
     Spline continentalness_spline = {};
+    Spline erosion_spline = {};
 
     Slice<Vec3f> density_offsets = {};
     Slice<Vec2f> continentalness_offsets = {};
@@ -110,6 +112,7 @@ struct Chunk
     float continentalness_values[Chunk_Size * Chunk_Size];
     float erosion_values[Chunk_Size * Chunk_Size];
     float peaks_and_valleys_values[Chunk_Size * Chunk_Size];
+    float terrain_height_values[Chunk_Size * Chunk_Size];
 };
 
 Block GetBlock(Chunk *chunk, int x, int y, int z);

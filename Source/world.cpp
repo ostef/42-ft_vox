@@ -95,25 +95,38 @@ void SetDefaultNoiseParams(World *world)
     world->continentalness_params.octaves = 6;
     world->continentalness_params.persistance = 0.196;
     world->continentalness_params.lacunarity = 4.085;
+    world->continentalness_params.final_amplitude = 2.13;
 
     world->erosion_params = {};
     world->erosion_params.scale = 0.00096;
     world->erosion_params.octaves = 5;
     world->erosion_params.persistance = 0.168;
     world->erosion_params.lacunarity = 3.897;
+    world->erosion_params.final_amplitude = 2.52;
 
     world->peaks_and_valleys_params = {};
-    world->peaks_and_valleys_params.scale = 0.05;
-    world->peaks_and_valleys_params.octaves = 3;
+    world->peaks_and_valleys_params.scale = 0.00106;
+    world->peaks_and_valleys_params.octaves = 4;
+    world->peaks_and_valleys_params.persistance = 0.267;
+    world->peaks_and_valleys_params.lacunarity = 4.824;
+    world->peaks_and_valleys_params.final_amplitude = 2.97;
 
     world->continentalness_spline = {};
-    AddPoint(&world->continentalness_spline, -1, Water_Level - 20, 0);
-    AddPoint(&world->continentalness_spline, 0, Water_Level - 20, 0);
-    AddPoint(&world->continentalness_spline, 0.2, Water_Level + 20, 0);
-    AddPoint(&world->continentalness_spline, 0.4, Water_Level + 20, 0);
-    AddPoint(&world->continentalness_spline, 0.5, Water_Level + 50, 0);
-    AddPoint(&world->continentalness_spline, 0.7, Water_Level + 60, 0);
-    AddPoint(&world->continentalness_spline, 1, Water_Level + 70, 0);
+    AddPoint(&world->continentalness_spline, -1.000, 136.000, 0.000);
+    AddPoint(&world->continentalness_spline, -0.200, 136.000, 0.000);
+    AddPoint(&world->continentalness_spline, 0.100, 176.000, 0.000);
+    AddPoint(&world->continentalness_spline, 0.400, 176.000, 0.000);
+    AddPoint(&world->continentalness_spline, 0.500, 206.000, 0.000);
+    AddPoint(&world->continentalness_spline, 0.700, 216.000, 0.000);
+    AddPoint(&world->continentalness_spline, 1.000, 226.000, 0.000);
+
+    world->erosion_spline = {};
+    AddPoint(&world->erosion_spline, 0.000, 1.000, -4.000);
+    AddPoint(&world->erosion_spline, 0.400, 0.500, -1.000);
+    AddPoint(&world->erosion_spline, 0.690, 0.090, 0.000);
+    AddPoint(&world->erosion_spline, 0.800, 0.270, 0.000);
+    AddPoint(&world->erosion_spline, 0.900, 0.250, -3.000);
+    AddPoint(&world->erosion_spline, 0.980, 0.350, -3.000);
 }
 
 static void GenerateChunkWorker(ThreadGroup *group, void *work);
@@ -130,6 +143,7 @@ void InitWorld(World *world, u32 seed)
     world->chunks_by_position.allocator = heap;
     world->chunks_by_position.Compare = CompareChunkKeys;
     world->chunks_by_position.Hash = HashChunkKey;
+    world->num_generated_chunks = 0;
 
     world->all_chunks.allocator = heap;
     world->dirty_chunks.allocator = heap;
@@ -301,11 +315,17 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
             float erosion = PerlinFractalNoise(world->erosion_params, world->erosion_offsets, perlin_x, perlin_z);
             erosion = (erosion + 1) * 0.5;
             float peaks_and_valleys = PerlinFractalNoise(world->peaks_and_valleys_params, world->peaks_and_valleys_offsets, perlin_x, perlin_z);
-            peaks_and_valleys = Abs(peaks_and_valleys);
+            peaks_and_valleys = 1 - Abs(3 * Abs(peaks_and_valleys) - 2);
 
-            chunk->continentalness_values[surface_index] = SampleSpline(&world->continentalness_spline, continentalness);
+            chunk->continentalness_values[surface_index] = continentalness;
             chunk->erosion_values[surface_index] = erosion;
             chunk->peaks_and_valleys_values[surface_index] = peaks_and_valleys;
+
+            float erosion_spline = SampleSpline(&world->erosion_spline, continentalness > 0 ? continentalness * erosion : 0);
+            float continentalness_spline = SampleSpline(&world->continentalness_spline, continentalness * erosion_spline);
+
+            float terrain_height = continentalness_spline;
+            chunk->terrain_height_values[surface_index] = terrain_height;
         }
     }
 
@@ -325,18 +345,14 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
                 float continentalness = chunk->continentalness_values[surface_index];
                 float erosion = chunk->erosion_values[surface_index];
                 float peaks_and_valleys = chunk->peaks_and_valleys_values[surface_index];
-                float base_height = continentalness;
-
-                // Apply erosion above water level
-                // if (base_height > Water_Level)
-                //     base_height *= 1 - erosion;
+                float base_height = chunk->terrain_height_values[surface_index];
 
                 float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y, perlin_z);
                 float density_bias = (base_height - iy) * squashing_factor * squashing_factor;
 
                 if (density + density_bias > 0)
                     chunk->blocks[index] = Block_Stone;
-                else if (iy < Water_Level)
+                else if (iy == Water_Level)
                     chunk->blocks[index] = Block_Water;
                 else
                     chunk->blocks[index] = Block_Air;
@@ -353,6 +369,7 @@ void HandleNewlyGeneratedChunks(World *world)
         auto work = (ChunkGenerationWork *)completed[i];
 
         work->chunk->is_generated = true;
+        world->num_generated_chunks += 1;
         MarkChunkDirty(world, work->chunk);
         Free(work, heap);
     }

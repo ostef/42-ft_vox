@@ -31,6 +31,80 @@ static const char *Noise_Param_Names[] = {
     "Peaks And Valleys",
 };
 
+static GfxTexture GenerateTerrainTexture(World *world, int size_in_chunks)
+{
+    int pixel_size = size_in_chunks * 2 * Chunk_Size;
+    u32 *pixels = Alloc<u32>(pixel_size * pixel_size, heap);
+
+    for (int z = -size_in_chunks; z < size_in_chunks; z += 1)
+    {
+        for (int x = -size_in_chunks; x < size_in_chunks; x += 1)
+        {
+            int px_min_x = (x + size_in_chunks) * Chunk_Size;
+            int px_max_x = px_min_x + Chunk_Size;
+            int px_min_y = (z + size_in_chunks) * Chunk_Size;
+            int px_max_y = px_min_y + Chunk_Size;
+
+            Chunk *chunk = HashMapFind(&world->chunks_by_position, {(s16)x, (s16)z});
+            if (!chunk)
+            {
+                for (int px_y = px_min_y; px_y < px_max_y; px_y += 1)
+                {
+                    for (int px_x = px_min_x; px_x < px_max_x; px_x += 1)
+                    {
+                        int px_index = px_y * pixel_size + px_x;
+                        pixels[px_index] = 0xff000000;
+                    }
+                }
+            }
+            else
+            {
+                for (int px_y = px_min_y; px_y < px_max_y; px_y += 1)
+                {
+                    for (int px_x = px_min_x; px_x < px_max_x; px_x += 1)
+                    {
+                        int px_index = px_y * pixel_size + px_x;
+
+                        int chunk_x = px_x - px_min_x;
+                        int chunk_z = px_y - px_min_y;
+                        int surface_index = chunk_z * Chunk_Size + chunk_x;
+                        float terrain_height = chunk->terrain_height_values[surface_index];
+                        terrain_height /= (float)Chunk_Height;
+                        if (terrain_height > Water_Level / (float)Chunk_Height)
+                        {
+                            u32 a = (u32)Clamp(terrain_height * 255, 0, 255);
+                            pixels[px_index] = (0xff << 24) | (a << 16) | (a << 8) | a;
+                        }
+                        else
+                        {
+                            Vec4f color = {0,0,1,1};
+                            color *= terrain_height / (Water_Level / (float)Chunk_Height);
+
+                            u32 r = (u32)Clamp(color.x * 255, 0, 255);
+                            u32 g = (u32)Clamp(color.y * 255, 0, 255);
+                            u32 b = (u32)Clamp(color.z * 255, 0, 255);
+
+                            pixels[px_index] = (0xff << 24) | (b << 16) | (g << 8) | r;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2D;
+    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+    desc.width = (u32)pixel_size;
+    desc.height = (u32)pixel_size;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    auto texture = GfxCreateTexture("Terrain", desc);
+
+    GfxReplaceTextureRegion(&texture, {0,0,0}, {desc.width, desc.height, 1}, 0, 0, pixels);
+
+    return texture;
+}
+
 static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
 {
     String name = Noise_Param_Names[param];
@@ -59,9 +133,9 @@ static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
                 noise = PerlinFractalNoise(all_params[param], (&world->continentalness_offsets)[param - 1], ix, iy);
 
             if (param == 3)
-                noise = Abs(noise);
-            else
-                noise = (noise + 1) * 0.5;
+                noise = 1 - Abs(3 * Abs(noise) - 2);
+
+            noise = (noise + 1) * 0.5;
 
             u32 a = (u32)Clamp(noise * 255, 0, 255);
             pixels[y * size + x] = (0xff << 24) | (a << 16) | (a << 8) | a;
@@ -71,6 +145,17 @@ static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
     GfxReplaceTextureRegion(&texture, {0,0,0}, {size, size, 1}, 0, 0, pixels);
 
     return texture;
+}
+
+static void WriteSplineCSourceCode(String name, Spline *spline)
+{
+    printf("%.*s = {};\n", FSTR(name));
+    for (int i = 0; i < spline->num_points; i += 1)
+    {
+        auto p = spline->points[i];
+        printf("AddPoint(&%.*s, %.3f, %.3f, %.3f);\n", FSTR(name), p.x, p.y, p.derivative);
+    }
+    printf("\n");
 }
 
 int main(int argc, char **args)
@@ -110,10 +195,7 @@ int main(int argc, char **args)
     }
 
     GfxTexture noise_texture = {};
-
-    Spline spline = {};
-    AddPoint(&spline, {.x=0, .y=0, .derivative=1});
-    AddPoint(&spline, {.x=1, .y=0, .derivative=-1});
+    GfxTexture terrain_texture = {};
 
     int current_params = 1;
     bool quit = false;
@@ -210,13 +292,30 @@ int main(int argc, char **args)
             regenerate_noise = true;
         }
 
-        UIImage(&noise_texture, {200, 200});
+        UIImage(&noise_texture, {200, 200}, {0,1}, {1,0});
 
         if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1, 0.1))
             regenerate = true;
 
-        if (UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}, -1, 1, 0, Chunk_Height, 0.1, 1))
+        if (current_params == 1)
+        {
+            UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}, -1, 1, 0, Chunk_Height, 0.1, 1);
+
+            if (UIButton("Dump to Terminal"))
+                WriteSplineCSourceCode("world->continentalness_spline", &g_world.continentalness_spline);
+        }
+        else if (current_params == 2)
+        {
+            UISplineEditor("Erosion Spline", &g_world.erosion_spline, {400, 250}, 0, 1, 0, 1, 0.1, 0.1);
+
+            if (UIButton("Dump to Terminal"))
+                WriteSplineCSourceCode("world->erosion_spline", &g_world.erosion_spline);
+        }
+
+        if (UIButton("Regenerate"))
             regenerate = true;
+
+        // UIImage(&terrain_texture, {256, 256}, {0,1}, {1,0});
 
         if (regenerate)
         {
@@ -243,6 +342,12 @@ int main(int argc, char **args)
 
             noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * N * 2);
         }
+
+        // if (regenerate && !IsNull(&terrain_texture))
+        //     GfxDestroyTexture(&terrain_texture);
+
+        // if (IsNull(&terrain_texture) && g_world.num_generated_chunks == g_world.all_chunks.count)
+        //     terrain_texture = GenerateTerrainTexture(&g_world, g_settings.render_distance);
 
         UpdateCamera(&g_world.camera);
 

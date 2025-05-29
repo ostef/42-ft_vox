@@ -536,7 +536,9 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
                 if (south == Block_Air)
                     faces |= BlockFaceFlag_South;
 
-                PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, 1);
+                float block_height = 1.0; //block == Block_Water ? 15 / 16.0 : 1.0;
+
+                PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
             }
         }
     }

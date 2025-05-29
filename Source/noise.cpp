@@ -222,7 +222,7 @@ float PerlinFractalNoise(NoiseParams params, Slice<Vec2f> offsets, float x, floa
         frequency *= params.lacunarity;
     }
 
-    return result / params.max_amplitude;
+    return result / params.max_amplitude * params.final_amplitude;
 }
 
 float PerlinFractalNoise(NoiseParams params, Slice<Vec3f> offsets, float x, float y, float z)
