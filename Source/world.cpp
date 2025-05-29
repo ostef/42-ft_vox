@@ -91,12 +91,16 @@ void SetDefaultNoiseParams(World *world)
     world->density_params.octaves = 3;
 
     world->continentalness_params = {};
-    world->continentalness_params.scale = 0.01;
-    world->continentalness_params.octaves = 3;
+    world->continentalness_params.scale = 0.00113;
+    world->continentalness_params.octaves = 6;
+    world->continentalness_params.persistance = 0.196;
+    world->continentalness_params.lacunarity = 4.085;
 
     world->erosion_params = {};
-    world->erosion_params.scale = 0.005;
-    world->erosion_params.octaves = 3;
+    world->erosion_params.scale = 0.00096;
+    world->erosion_params.octaves = 5;
+    world->erosion_params.persistance = 0.168;
+    world->erosion_params.lacunarity = 3.897;
 
     world->peaks_and_valleys_params = {};
     world->peaks_and_valleys_params.scale = 0.05;

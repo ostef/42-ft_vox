@@ -9,7 +9,7 @@
 
 struct Settings
 {
-    int render_distance = 16;
+    int render_distance = 25;
 };
 
 Settings g_settings;
@@ -165,6 +165,16 @@ int main(int argc, char **args)
         auto all_noise_params = GetAllNoiseParams(&g_world);
 
         bool regenerate_noise = false;
+
+        UIText(TPrintf("Seed: %u", g_world.seed));
+        UISameLine();
+        if (UIButton("Randomize"))
+        {
+            g_world.seed = (u32)(GetTimeInSeconds() * 347868765);
+            regenerate = true;
+            regenerate_noise = true;
+        }
+
         if (UIButton("Reset to default"))
         {
             SetDefaultNoiseParams(&g_world);
@@ -202,7 +212,7 @@ int main(int argc, char **args)
 
         UIImage(&noise_texture, {200, 200});
 
-        if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1))
+        if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1, 0.1))
             regenerate = true;
 
         if (UISplineEditor("Continentalness Spline", &g_world.continentalness_spline, {400, 250}, -1, 1, 0, Chunk_Height, 0.1, 1))
