@@ -242,6 +242,21 @@ void DestroyChunk(World *world, Chunk *chunk)
     Free(chunk, heap);
 }
 
+void GenerateChunksAroundPoint(World *world, Vec3f point, float radius)
+{
+    int chunk_min_x = (int)((point.x - radius) / Chunk_Size);
+    int chunk_min_z = (int)((point.z - radius) / Chunk_Size);
+    int chunk_max_x = (int)((point.x + radius) / Chunk_Size);
+    int chunk_max_z = (int)((point.z + radius) / Chunk_Size);
+    for (int z = chunk_min_z; z < chunk_max_z; z += 1)
+    {
+        for (int x = chunk_min_x; x < chunk_max_x; x += 1)
+        {
+            QueueChunkGeneration(world, x, z);
+        }
+    }
+}
+
 float squashing_factor = 1.0;
 
 struct ChunkGenerationWork
@@ -252,12 +267,17 @@ struct ChunkGenerationWork
 
 void QueueChunkGeneration(World *world, s16 x, s16 z)
 {
+    bool exists = false;
+    Chunk **chunk_ptr = HashMapFindOrAdd(&world->chunks_by_position, {.x=x, .z=z}, &exists);
+    if (exists)
+        return;
+
     Chunk *chunk = Alloc<Chunk>(heap);
     chunk->x = x;
     chunk->z = z;
 
     ArrayPush(&world->all_chunks, chunk);
-    HashMapInsert(&world->chunks_by_position, {.x=chunk->x, .z=chunk->z}, chunk);
+    *chunk_ptr = chunk;
 
     chunk->east  = HashMapFind(&world->chunks_by_position, ChunkKey{.x=(s16)(chunk->x+1), .z=chunk->z});
     if (chunk->east)

@@ -123,6 +123,8 @@ void InitWorld(World *world, u32 seed);
 void DestroyWorld(World *world);
 void DestroyChunk(World *world, Chunk *chunk);
 
+void GenerateChunksAroundPoint(World *world, Vec3f point, float radius);
+
 void QueueChunkGeneration(World *world, s16 x, s16 z);
 void HandleNewlyGeneratedChunks(World *world);
 

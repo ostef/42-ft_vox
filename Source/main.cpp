@@ -7,11 +7,6 @@
 
 #include <SDL.h>
 
-struct Settings
-{
-    int render_distance = 25;
-};
-
 Settings g_settings;
 
 u64 g_frame_index = 0;
@@ -172,7 +167,7 @@ int main(int argc, char **args)
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
     #endif
 
-    g_window = SDL_CreateWindow("Vox", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, sdl_flags);
+    g_window = SDL_CreateWindow("Vox", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1800, 1012, sdl_flags);
     defer(SDL_DestroyWindow(g_window));
 
     GfxCreateContext(g_window);
@@ -182,17 +177,8 @@ int main(int argc, char **args)
     InitRenderer();
 
     SetDefaultNoiseParams(&g_world);
-    InitWorld(&g_world, 123456);
+    InitWorld(&g_world, (u32)(GetTimeInSeconds() * 173894775));
     defer(DestroyWorld(&g_world));
-
-    int N = g_settings.render_distance;
-    for (s16 x = -N; x <= N; x += 1)
-    {
-        for (s16 z = -N; z <= N; z += 1)
-        {
-            QueueChunkGeneration(&g_world, x, z);
-        }
-    }
 
     GfxTexture noise_texture = {};
     GfxTexture terrain_texture = {};
@@ -287,15 +273,14 @@ int main(int argc, char **args)
         UIText(Noise_Param_Names[current_params]);
 
         if (UINoiseParams(Noise_Param_Names[current_params], &all_noise_params[current_params]))
-        {
-            regenerate = true;
             regenerate_noise = true;
-        }
+
+        UIFloatEdit("squashing_factor", &squashing_factor, 0, 1, 0.1);
+
+        if (UIButton("Regenerate"))
+            regenerate = true;
 
         UIImage(&noise_texture, {200, 200}, {0,1}, {1,0});
-
-        if (UIFloatEdit("squashing_factor", &squashing_factor, 0, 1, 0.1))
-            regenerate = true;
 
         if (current_params == 1)
         {
@@ -325,14 +310,6 @@ int main(int argc, char **args)
             InitWorld(&g_world, g_world.seed);
 
             g_world.camera = camera;
-
-            for (s16 x = -N; x <= N; x += 1)
-            {
-                for (s16 z = -N; z <= N; z += 1)
-                {
-                    QueueChunkGeneration(&g_world, x, z);
-                }
-            }
         }
 
         if (regenerate_noise || IsNull(&noise_texture))
@@ -340,7 +317,7 @@ int main(int argc, char **args)
             if (!IsNull(&noise_texture))
                 GfxDestroyTexture(&noise_texture);
 
-            noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * N * 2);
+            noise_texture = GenerateNoiseTexture(&g_world, current_params, Chunk_Size * g_settings.render_distance * 2);
         }
 
         // if (regenerate && !IsNull(&terrain_texture))
@@ -350,6 +327,8 @@ int main(int argc, char **args)
         //     terrain_texture = GenerateTerrainTexture(&g_world, g_settings.render_distance);
 
         UpdateCamera(&g_world.camera);
+
+        GenerateChunksAroundPoint(&g_world, g_world.camera.position, g_settings.render_distance * Chunk_Size);
 
         RenderGraphics(&g_world);
     }

@@ -658,3 +658,10 @@ void AddWork(ThreadGroup *group, void *work);
 Slice<void *> GetCompletedWork(ThreadGroup *group);
 
 float GetTimeInSeconds();
+
+struct Settings
+{
+    int render_distance = 25;
+};
+
+extern Settings g_settings;

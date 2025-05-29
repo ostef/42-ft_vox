@@ -905,6 +905,11 @@ void RenderGraphics(World *world)
                 if (!chunk->mesh.uploaded)
                     continue;
 
+                Vec2f chunk_position = Vec2f{(float)chunk->x * Chunk_Size, (float)chunk->z * Chunk_Size};
+                Vec2f camera_position = Vec2f{world->camera.position.x, world->camera.position.z};
+                if (Length(camera_position - chunk_position) > g_settings.render_distance * Chunk_Size)
+                    continue;
+
                 GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
 
                 GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, chunk->mesh.index_count, GfxIndexType_Uint32, 1, 0, 0, (u32)i);
