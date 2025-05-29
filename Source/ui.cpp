@@ -303,12 +303,12 @@ bool UINoiseParams(String id, NoiseParams *params)
     NoiseParams old = *params;
 
     float scale1000 = params->scale * 1000;
-    if (UIFloatEdit("scale (x1000)", &scale1000, 0, 1000, 0.1))
+    if (UIFloatEdit(TPrintf("scale (x1000)#%.*s", FSTR(id)), &scale1000, 0, 1000, 0.1))
         params->scale = scale1000 / 1000;
 
-    UIIntEdit("octaves", &params->octaves, 1, Perlin_Fractal_Max_Octaves);
-    UIFloatEdit("persistance", &params->persistance, 0, 1, 0.1);
-    UIFloatEdit("lacunarity", &params->lacunarity, 0, 10, 0.1);
+    UIIntEdit(TPrintf("octaves#%.*s", FSTR(id)), &params->octaves, 1, Perlin_Fractal_Max_Octaves);
+    UIFloatEdit(TPrintf("persistance#%.*s", FSTR(id)), &params->persistance, 0, 1, 0.1);
+    UIFloatEdit(TPrintf("lacunarity#%.*s", FSTR(id)), &params->lacunarity, 0, 10, 0.1);
 
     params->max_amplitude = PerlinFractalMax(params->octaves, params->persistance);
 
