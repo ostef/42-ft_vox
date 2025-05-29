@@ -403,6 +403,8 @@ void GfxDestroyShader(GfxShader *shader);
 
 struct GfxRenderPassDesc
 {
+    u32 render_target_array_length = 1;
+
     GfxTexture *color_attachments[Gfx_Max_Color_Attachments] = {};
     GfxTexture *depth_attachment = null;
     GfxTexture *stencil_attachment = null;

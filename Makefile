@@ -16,7 +16,8 @@ endif
 
 SRC_DIR=Source
 
-SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp renderer.cpp world.cpp shader_preprocessor.cpp ui.cpp
+SRC_FILES=main.cpp core.cpp math.cpp input.cpp noise.cpp world.cpp ui.cpp \
+	Graphics/shader_preprocessor.cpp Graphics/shader.cpp Graphics/renderer.cpp Graphics/mesh.cpp Graphics/shadow_map.cpp
 
 OPENGL_SRC_FILES=Graphics/OpenGL/opengl.cpp \
 	Graphics/OpenGL/render_pass.cpp \

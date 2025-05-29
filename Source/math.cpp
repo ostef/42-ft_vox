@@ -474,6 +474,11 @@ Mat4f Inverted(const Mat4f &m)
     };
 }
 
+Vec3f TranslationVector(const Mat4f &m)
+{
+    return Vec3f{m.r0c3, m.r1c3, m.r2c3};
+}
+
 Vec3f RightVector(const Mat4f &m)
 {
     return Normalized(Vec3f{m.r0c0, m.r1c0, m.r2c0});
@@ -610,6 +615,29 @@ Mat4f Mat4fPerspectiveProjection(float fovy, float aspect, float znear, float zf
                       0, 2 * n / (t - b), -view_z * (t + b) / (t - b),                      0,
                       0,               0,  view_z * (f + n) / (f - n), -(2 * f * n) / (f - n),
                       0,               0,                      view_z,                      0
+    };
+
+    // Depth range 0-1
+    result.r2c2 = result.r2c2 * 0.5 + result.r3c2 * 0.5;
+    result.r2c3 = result.r2c3 * 0.5 + result.r3c3 * 0.5;
+
+    return result;
+}
+
+Mat4f Mat4fOrthographicProjection(float left, float right, float bottom, float top, float znear, float zfar)
+{
+    float l = left;
+    float r = right;
+    float b = bottom;
+    float t = top;
+    float n = znear;
+    float f = zfar;
+
+    auto result = Mat4f{
+        2 / (r - l),           0,           0, (r + l) / (l - r),
+                  0, 2 / (t - b),           0, (t + b) / (b - t),
+                  0,           0, 2 / (f - n), (n + f) / (n - f),
+                  0,           0,           0,                 1
     };
 
     // Depth range 0-1

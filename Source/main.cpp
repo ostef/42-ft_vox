@@ -1,6 +1,6 @@
 #include "Core.hpp"
 #include "Graphics.hpp"
-#include "Renderer.hpp"
+#include "Graphics/Renderer.hpp"
 #include "World.hpp"
 #include "Input.hpp"
 #include "UI.hpp"

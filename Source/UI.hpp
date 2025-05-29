@@ -3,7 +3,7 @@
 #include "Core.hpp"
 #include "Math.hpp"
 #include "Graphics.hpp"
-#include "Renderer.hpp"
+#include "Graphics/Renderer.hpp"
 
 void UIBeginFrame();
 void UIRender(FrameRenderContext *ctx);

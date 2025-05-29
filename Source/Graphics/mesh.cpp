@@ -1,0 +1,403 @@
+#include "Graphics/Renderer.hpp"
+#include "World.hpp"
+
+struct ChunkMeshUpload
+{
+    Array<BlockVertex> vertices = {};
+    Array<u32> indices = {};
+    Mesh *mesh = null;
+};
+
+// Enough for the maximum needed for two chunks
+#define Chunk_Mesh_Allocator_Capacity (2 * 4 * 6 * (Chunk_Size * Chunk_Size * Chunk_Height * (sizeof(BlockVertex) + sizeof(u32))))
+
+Array<ChunkMeshUpload> g_pending_chunk_mesh_uploads;
+GfxAllocator g_chunk_upload_allocators[Gfx_Max_Frames_In_Flight];
+
+GfxAllocator *CurrentChunkMeshGfxAllocator()
+{
+    return &g_chunk_upload_allocators[GfxGetBackbufferIndex()];
+}
+
+static BlockVertex *PushVertex(Array<BlockVertex> *vertices, Block block, float block_height, BlockFace face, BlockCorner corner)
+{
+    auto v = ArrayPush(vertices);
+    v->block = block;
+    v->block_height = block_height;
+    v->block_face = face;
+    v->block_corner = corner;
+
+    return v;
+}
+
+static void PushBlockVertices(
+    Array<BlockVertex> *vertices, Array<u32> *indices,
+    Block block,
+    Vec3f position,
+    BlockFaceFlags visible_faces,
+    float block_height
+)
+{
+    if (!visible_faces || block == Block_Air)
+        return;
+
+    u32 index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_East)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{1,0,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_TopRight);
+        v->position = position + Vec3f{1,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_TopLeft);
+        v->position = position + Vec3f{1,block_height,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_BottomRight);
+        v->position = position + Vec3f{1,0,1};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+
+    index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_West)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{0,0,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_TopRight);
+        v->position = position + Vec3f{0,block_height,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_TopLeft);
+        v->position = position + Vec3f{0,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_BottomRight);
+        v->position = position + Vec3f{0,0,0};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+
+    index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_Top)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{0,block_height,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_TopRight);
+        v->position = position + Vec3f{1,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_TopLeft);
+        v->position = position + Vec3f{0,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_BottomRight);
+        v->position = position + Vec3f{1,block_height,0};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+
+    index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_Bottom)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{0,0,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_TopRight);
+        v->position = position + Vec3f{1,0,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_TopLeft);
+        v->position = position + Vec3f{1,0,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_BottomRight);
+        v->position = position + Vec3f{0,0,1};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+
+    index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_North)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{1,0,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_TopRight);
+        v->position = position + Vec3f{0,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_TopLeft);
+        v->position = position + Vec3f{1,block_height,1};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_BottomRight);
+        v->position = position + Vec3f{0,0,1};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+
+    index_start = (u32)vertices->count;
+    if (visible_faces & BlockFaceFlag_South)
+    {
+        auto v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_BottomLeft);
+        v->position = position + Vec3f{0,0,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_TopRight);
+        v->position = position + Vec3f{1,block_height,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_TopLeft);
+        v->position = position + Vec3f{0,block_height,0};
+
+        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_BottomRight);
+        v->position = position + Vec3f{1,0,0};
+
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+}
+
+static void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices);
+
+void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
+{
+    auto work = (ChunkMeshWork *)data;
+    auto chunk = work->chunk;
+
+    work->vertices.allocator = heap;
+    ArrayReserve(&work->vertices, chunk->mesh.vertex_count);
+
+    work->indices.allocator = heap;
+    ArrayReserve(&work->indices, chunk->mesh.index_count);
+
+    Vec3f chunk_position = Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size};
+    for (int y = 0; y < Chunk_Height; y += 1)
+    {
+        for (int z = 0; z < Chunk_Size; z += 1)
+        {
+            for (int x = 0; x < Chunk_Size; x += 1)
+            {
+                Block block = GetBlock(chunk, x, y, z);
+                if (block == Block_Air)
+                    continue;
+
+                auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
+                auto west   = GetBlockInNeighbors(chunk, x - 1, y, z);
+                auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
+                auto bottom = GetBlockInNeighbors(chunk, x, y - 1, z);
+                auto north  = GetBlockInNeighbors(chunk, x, y, z + 1);
+                auto south  = GetBlockInNeighbors(chunk, x, y, z - 1);
+
+                BlockFaceFlags faces = 0;
+                if (east == Block_Air)
+                    faces |= BlockFaceFlag_East;
+                if (west == Block_Air)
+                    faces |= BlockFaceFlag_West;
+                if (top == Block_Air)
+                    faces |= BlockFaceFlag_Top;
+                if (bottom == Block_Air)
+                    faces |= BlockFaceFlag_Bottom;
+                if (north == Block_Air)
+                    faces |= BlockFaceFlag_North;
+                if (south == Block_Air)
+                    faces |= BlockFaceFlag_South;
+
+                float block_height = 1.0; //block == Block_Water ? 15 / 16.0 : 1.0;
+
+                PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
+            }
+        }
+    }
+}
+
+void HandleChunkMeshGeneration(World *world)
+{
+    foreach (i, world->dirty_chunks)
+    {
+        auto chunk = world->dirty_chunks[i];
+        if (!chunk->is_generated)
+            continue;
+        if (chunk->east && !chunk->east->is_generated)
+            continue;
+        if (chunk->west && !chunk->west->is_generated)
+            continue;
+        if (chunk->north && !chunk->north->is_generated)
+            continue;
+        if (chunk->south && !chunk->south->is_generated)
+            continue;
+
+        auto work = Alloc<ChunkMeshWork>(heap);
+        work->chunk = chunk;
+        AddWork(&world->chunk_mesh_generation_thread_group, work);
+
+        ArrayOrderedRemoveAt(&world->dirty_chunks, i);
+        i -= 1;
+    }
+
+    auto generated_chunk_meshes = GetCompletedWork(&world->chunk_mesh_generation_thread_group);
+    foreach (i, generated_chunk_meshes)
+    {
+        auto work = (ChunkMeshWork *)generated_chunk_meshes[i];
+
+        work->chunk->mesh.vertex_count = (u32)work->vertices.count;
+        work->chunk->mesh.index_count = (u32)work->indices.count;
+
+        // Recreate buffers if they are too small
+        if (work->chunk->mesh.vertex_count * sizeof(BlockVertex) > (u64)GetDesc(&work->chunk->mesh.vertex_buffer).size)
+        {
+            if (!IsNull(&work->chunk->mesh.vertex_buffer))
+                GfxDestroyBuffer(&work->chunk->mesh.vertex_buffer);
+
+            GfxBufferDesc desc{};
+            desc.size = work->chunk->mesh.vertex_count * sizeof(BlockVertex);
+            desc.usage = GfxBufferUsage_VertexBuffer;
+            work->chunk->mesh.vertex_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Vertices", work->chunk->x, work->chunk->z), desc);
+            Assert(!IsNull(&work->chunk->mesh.vertex_buffer));
+        }
+
+        if (work->chunk->mesh.index_count * sizeof(u32) > (u64)GetDesc(&work->chunk->mesh.index_buffer).size)
+        {
+            if (!IsNull(&work->chunk->mesh.index_buffer))
+                GfxDestroyBuffer(&work->chunk->mesh.index_buffer);
+
+            GfxBufferDesc desc{};
+            desc.size = work->chunk->mesh.index_count * sizeof(u32);
+            desc.usage = GfxBufferUsage_IndexBuffer;
+            work->chunk->mesh.index_buffer = GfxCreateBuffer(TPrintf("Chunk %d %d Indices", work->chunk->x, work->chunk->z), desc);
+            Assert(!IsNull(&work->chunk->mesh.index_buffer));
+        }
+
+        AppendChunkMeshUpload(work->chunk, work->vertices, work->indices);
+
+        Free(work, heap);
+    }
+}
+
+void CancelChunkMeshUpload(Chunk *chunk)
+{
+    foreach (i, g_pending_chunk_mesh_uploads)
+    {
+        auto upload = g_pending_chunk_mesh_uploads[i];
+        if (upload.mesh == &chunk->mesh)
+        {
+            ArrayFree(&upload.vertices);
+            ArrayFree(&upload.indices);
+            ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
+            break;
+        }
+    }
+}
+
+void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices)
+{
+    if (vertices.count <= 0 && indices.count <= 0)
+        return;
+
+    foreach (i, g_pending_chunk_mesh_uploads)
+    {
+        auto upload = &g_pending_chunk_mesh_uploads[i];
+        if (upload->mesh == &chunk->mesh)
+        {
+            ArrayFree(&upload->vertices);
+            ArrayFree(&upload->indices);
+
+            upload->vertices = vertices;
+            upload->indices = indices;
+            upload->mesh->uploaded = false;
+
+            return;
+        }
+    }
+
+    ChunkMeshUpload upload{};
+    upload.vertices = vertices;
+    upload.indices = indices;
+    upload.mesh = &chunk->mesh;
+    upload.mesh->uploaded = false;
+
+    ArrayPush(&g_pending_chunk_mesh_uploads, upload);
+}
+
+void UploadPendingChunkMeshes(GfxCopyPass *pass, int max_uploads)
+{
+    float time_start = GetTimeInSeconds();
+
+    ResetGfxAllocator(CurrentChunkMeshGfxAllocator());
+
+    if (g_pending_chunk_mesh_uploads.count <= 0)
+        return;
+
+    int num_uploaded = 0;
+    GfxAllocator *gfx_allocator = CurrentChunkMeshGfxAllocator();
+    Allocator allocator = MakeAllocator(gfx_allocator);
+
+    foreach (i, g_pending_chunk_mesh_uploads)
+    {
+        if (num_uploaded >= max_uploads)
+            break;
+
+        auto upload = g_pending_chunk_mesh_uploads[i];
+
+        s64 vertices_size = upload.vertices.count * sizeof(BlockVertex);
+        s64 indices_size = upload.indices.count * sizeof(u32);
+        s64 total_size = vertices_size + indices_size;
+
+        void *ptr = Alloc(total_size, allocator);
+        if (!ptr)
+            continue;
+
+        s64 vertices_offset = GetBufferOffset(gfx_allocator, ptr);
+        s64 indices_offset = vertices_offset + vertices_size;
+
+        memcpy(ptr, upload.vertices.data, vertices_size);
+        memcpy((u8 *)ptr + vertices_size, upload.indices.data, indices_size);
+
+        ArrayFree(&upload.vertices);
+        ArrayFree(&upload.indices);
+
+        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, vertices_offset, &upload.mesh->vertex_buffer, 0, vertices_size);
+        GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, indices_offset, &upload.mesh->index_buffer, 0, indices_size);
+
+        upload.mesh->uploaded = true;
+
+        ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
+        i -= 1;
+        num_uploaded += 1;
+    }
+
+    FlushGfxAllocator(gfx_allocator);
+
+    float time_end = GetTimeInSeconds();
+    LogMessage(Log_Graphics, "Uploaded %d chunks (%lld pending) in %f s", num_uploaded, g_pending_chunk_mesh_uploads.count, time_end - time_start);
+}
+
+void InitChunkMeshUploader()
+{
+    g_pending_chunk_mesh_uploads.allocator = heap;
+
+    for (int i = 0; i < Gfx_Max_Frames_In_Flight; i += 1)
+        InitGfxAllocator(&g_chunk_upload_allocators[i], TPrintf("Chunk Mesh Allocator %d", i), Chunk_Mesh_Allocator_Capacity);
+}

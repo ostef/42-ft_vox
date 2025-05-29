@@ -54,6 +54,15 @@ GfxPipelineState GfxCreatePipelineState(String name, GfxPipelineStateDesc desc)
 
     SetupPipelineBindings(&result);
 
+    if (desc.fragment_shader)
+    {
+        foreach (i, desc.fragment_shader->bindings)
+        {
+            auto b = desc.fragment_shader->bindings[i];
+            printf("%.*s: %d\n", FSTR(b.name), b.index);
+        }
+    }
+
     return result;
 }
 

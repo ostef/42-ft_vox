@@ -108,6 +108,8 @@ struct BlockVertex
     int block_corner;
 };
 
+Slice<GfxVertexInputDesc> MakeBlockVertexLayout();
+
 struct Mesh
 {
     GfxBuffer vertex_buffer = {};
@@ -124,6 +126,7 @@ struct FrameRenderContext
 {
     GfxCommandBuffer *cmd_buffer = null;
     s64 frame_info_offset = -1;
+    World *world = null;
 };
 
 void InitRenderer();
@@ -133,6 +136,29 @@ void RenderGraphics(World *world);
 #define Block_Atlas_Num_Blocks 16
 #define Block_Atlas_Size (Block_Texture_Size * Block_Atlas_Num_Blocks)
 
+#define Shadow_Map_Default_Resolution 2048
+#define Shadow_Map_Num_Cascades 4
+#define Shadow_Map_Noise_Size 32
+#define Shadow_Map_Num_Filtering_Samples_Sqrt 8
+#define Shadow_Map_Num_Filtering_Samples (Shadow_Map_Num_Filtering_Samples_Sqrt * Shadow_Map_Num_Filtering_Samples_Sqrt)
+
+extern GfxTexture g_shadow_map_texture;
+extern GfxSamplerState g_shadow_map_sampler;
+extern GfxTexture g_shadow_map_noise_texture;
+extern GfxSamplerState g_shadow_map_noise_sampler;
+extern float g_shadow_map_cascade_sizes[Shadow_Map_Num_Cascades];
+
+extern float g_shadow_map_min_depth_bias;
+extern float g_shadow_map_max_depth_bias;
+extern float g_shadow_map_normal_bias;
+extern float g_shadow_map_filter_radius;
+
+Mat4f GetShadowMapCascadeMatrix(Vec3f light_direction, Mat4f camera_transform, int level);
+
+void InitShadowMap();
+void RecreateShadowMapTexture(u32 resolution);
+void ShadowMapPass(FrameRenderContext *ctx);
+
 #pragma pack(push, 1)
 
 struct Std140Camera
@@ -140,20 +166,35 @@ struct Std140Camera
     float fov_in_degrees;
     float z_near_dist;
     float z_far_dist;
-    u32 _padding0[1] = {0};
+    u32 _padding0 = 0;
     Mat4f transform;
     Mat4f view;
     Mat4f projection;
+};
+
+struct Std140ShadowMap
+{
+    int resolution;
+    int noise_resolution;
+    Vec2f depth_bias_min_max;
+    float normal_bias;
+    float filter_radius;
+    u32 _padding0[2] = {0};
+    Mat4f cascade_matrices[Shadow_Map_Num_Cascades];
+    Vec4f cascade_sizes[Shadow_Map_Num_Cascades];
 };
 
 struct Std140FrameInfo
 {
     Vec2f window_pixel_size;
     float window_scale_factor;
-    u32 _padding0[1] = {0};
+    u32 _padding0 = 0;
+    Vec3f sun_direction;
+    u32 _padding1 = 0;
     Std140Camera camera;
     Vec2f texture_atlas_size;
     Vec2f texture_block_size;
+    Std140ShadowMap shadow_map;
 };
 
 #pragma pack(pop)

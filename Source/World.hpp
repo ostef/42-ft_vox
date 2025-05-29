@@ -2,7 +2,7 @@
 
 #include "Core.hpp"
 #include "Graphics.hpp"
-#include "Renderer.hpp"
+#include "Graphics/Renderer.hpp"
 
 #define Chunk_Height 256
 #define Chunk_Size 16
@@ -49,6 +49,7 @@ struct World
 {
     u32 seed;
 
+    Vec3f sun_direction = {1,0,0};
     Camera camera {};
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
     Array<Chunk *> all_chunks = {};

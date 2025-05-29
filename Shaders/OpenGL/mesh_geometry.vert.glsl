@@ -19,8 +19,10 @@ out gl_PerVertex
 
 flat out Block block;
 flat out BlockFace block_face;
-out vec2 tex_coords;
+out vec2 screen_position;
+out vec3 position;
 out vec3 normal;
+out vec2 tex_coords;
 
 void main()
 {
@@ -29,8 +31,10 @@ void main()
 
     block = v_block;
     block_face = v_block_face;
-    tex_coords = (Block_Tex_Coords[v_block_corner] + tex_coords_start) / float(num_atlas_blocks);
+    position = v_position;
     normal = Block_Normals[v_block_face];
+    tex_coords = (Block_Tex_Coords[v_block_corner] + tex_coords_start) / float(num_atlas_blocks);
 
     gl_Position = frame_info.camera.projection * frame_info.camera.view * vec4(v_position,1);
+    screen_position = (gl_Position.xy + vec2(1)) * 0.5;
 }

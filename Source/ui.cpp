@@ -1,5 +1,5 @@
 #include "UI.hpp"
-#include "Renderer.hpp"
+#include "Graphics/Renderer.hpp"
 #include "Input.hpp"
 
 #include <stb_image.h>

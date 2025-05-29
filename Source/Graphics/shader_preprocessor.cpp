@@ -1,5 +1,5 @@
 #include "Core.hpp"
-#include "Renderer.hpp"
+#include "Graphics/Renderer.hpp"
 
 static const char *Log_Shader_Preprocessor = "Shader Preprocessor";
 
