@@ -129,6 +129,9 @@ struct FrameRenderContext
     World *world = null;
 };
 
+void InitRenderer();
+void RenderGraphics(World *world);
+
 #define Block_Texture_Size_No_Border 16
 #define Block_Texture_Border 4
 #define Block_Texture_Size (Block_Texture_Size_No_Border + Block_Texture_Border * 2)
@@ -140,9 +143,6 @@ extern GfxTexture g_block_atlas;
 void LoadBlockAtlasTexture();
 void QueueGenerateMipmaps(GfxTexture *texture);
 void GeneratePendingMipmaps(GfxCommandBuffer *cmd_buffer);
-
-void InitRenderer();
-void RenderGraphics(World *world);
 
 #define Shadow_Map_Default_Resolution 2048
 #define Shadow_Map_Num_Cascades 4
