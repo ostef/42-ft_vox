@@ -19,7 +19,7 @@ GfxAllocator *CurrentChunkMeshGfxAllocator()
     return &g_chunk_upload_allocators[GfxGetBackbufferIndex()];
 }
 
-static BlockVertex *PushVertex(Array<BlockVertex> *vertices, Block block, float block_height, BlockFace face, BlockCorner corner)
+static BlockVertex *PushVertex(Array<BlockVertex> *vertices, Block block, float block_height, BlockFace face, QuadCorner corner)
 {
     auto v = ArrayPush(vertices);
     v->block = block;
@@ -44,16 +44,16 @@ static void PushBlockVertices(
     u32 index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_East)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_BottomLeft);
         v->position = position + Vec3f{1,0,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_TopRight);
         v->position = position + Vec3f{1,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_TopLeft);
         v->position = position + Vec3f{1,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_BottomRight);
         v->position = position + Vec3f{1,0,1};
 
         ArrayPush(indices, index_start + 0);
@@ -67,16 +67,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_West)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_BottomLeft);
         v->position = position + Vec3f{0,0,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_TopRight);
         v->position = position + Vec3f{0,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_TopLeft);
         v->position = position + Vec3f{0,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_West, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_BottomRight);
         v->position = position + Vec3f{0,0,0};
 
         ArrayPush(indices, index_start + 0);
@@ -90,16 +90,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_Top)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_BottomLeft);
         v->position = position + Vec3f{0,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_TopRight);
         v->position = position + Vec3f{1,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_TopLeft);
         v->position = position + Vec3f{0,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_BottomRight);
         v->position = position + Vec3f{1,block_height,0};
 
         ArrayPush(indices, index_start + 0);
@@ -113,16 +113,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_Bottom)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_BottomLeft);
         v->position = position + Vec3f{0,0,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_TopRight);
         v->position = position + Vec3f{1,0,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_TopLeft);
         v->position = position + Vec3f{1,0,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_BottomRight);
         v->position = position + Vec3f{0,0,1};
 
         ArrayPush(indices, index_start + 0);
@@ -136,16 +136,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_North)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_BottomLeft);
         v->position = position + Vec3f{1,0,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_TopRight);
         v->position = position + Vec3f{0,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_TopLeft);
         v->position = position + Vec3f{1,block_height,1};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_North, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_BottomRight);
         v->position = position + Vec3f{0,0,1};
 
         ArrayPush(indices, index_start + 0);
@@ -159,16 +159,16 @@ static void PushBlockVertices(
     index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_South)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_BottomLeft);
+        auto v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_BottomLeft);
         v->position = position + Vec3f{0,0,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_TopRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_TopRight);
         v->position = position + Vec3f{1,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_TopLeft);
+        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_TopLeft);
         v->position = position + Vec3f{0,block_height,0};
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South, BlockCorner_BottomRight);
+        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_BottomRight);
         v->position = position + Vec3f{1,0,0};
 
         ArrayPush(indices, index_start + 0);

@@ -91,6 +91,7 @@ static GfxPipelineState g_post_processing_pipeline;
 static GfxPipelineState g_chunk_pipeline;
 static GfxTexture g_main_color_texture;
 static GfxTexture g_main_depth_texture;
+static GfxSamplerState g_linear_sampler;
 static GfxSamplerState g_block_sampler;
 
 void InitChunkMeshUploader();
@@ -159,6 +160,15 @@ void InitRenderer()
 
         g_chunk_pipeline = GfxCreatePipelineState("Chunk", pipeline_desc);
         Assert(!IsNull(&g_chunk_pipeline));
+    }
+
+    {
+        GfxSamplerStateDesc desc{};
+        desc.min_filter = GfxSamplerFilter_Linear;
+        desc.mag_filter = GfxSamplerFilter_Linear;
+        desc.u_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        desc.v_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        g_linear_sampler = GfxCreateSamplerState("Linear", desc);
     }
 
     {
@@ -356,6 +366,7 @@ void RenderGraphics(World *world)
 
             auto fragment_main_texture = GfxGetFragmentStageBinding(&g_post_processing_pipeline, "main_texture");
             GfxSetTexture(&pass, fragment_main_texture, &g_main_color_texture);
+            GfxSetSamplerState(&pass, fragment_main_texture, &g_linear_sampler);
 
             GfxDrawPrimitives(&pass, 6, 1);
         }

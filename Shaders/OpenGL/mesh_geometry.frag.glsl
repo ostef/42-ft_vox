@@ -32,7 +32,8 @@ void main()
     float3 sun_color = frame_info.sun_color.rgb * frame_info.sun_color.a;
 
     float4 base_color = texture(block_atlas, float3(tex_coords, block_face));
-    float3 brdf = CalculateBRDF(base_color.rgb, 0, 1, N, V, L, sun_color * sun_shadow);
+    float roughness = 0.9 - length(base_color.rgb) * 0.4;
+    float3 brdf = CalculateBRDF(base_color.rgb, 0, roughness, N, V, L, sun_color * sun_shadow);
     float3 ambient = base_color.rgb * 0.3;
     float3 color = ambient + brdf;
 

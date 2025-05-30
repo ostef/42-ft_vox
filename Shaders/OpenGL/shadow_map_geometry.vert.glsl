@@ -15,7 +15,7 @@
 layout(location = 0) in float3 v_position;
 layout(location = 1) in Block v_block;
 layout(location = 2) in BlockFace v_block_face;
-layout(location = 3) in BlockCorner v_block_corner;
+layout(location = 3) in QuadCorner v_block_corner;
 
 layout(std140) uniform frame_info_buffer
 {

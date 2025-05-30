@@ -91,13 +91,19 @@ typedef u32 BlockFaceFlags;
 #define BlockFaceFlag_South  (1 << (u32)BlockFace_South)
 #define BlockFaceFlag_All    0x3f
 
-enum BlockCorner
+enum QuadCorner
 {
-    BlockCorner_TopLeft,
-    BlockCorner_TopRight,
-    BlockCorner_BottomLeft,
-    BlockCorner_BottomRight,
+    QuadCorner_TopLeft,
+    QuadCorner_TopRight,
+    QuadCorner_BottomLeft,
+    QuadCorner_BottomRight,
 };
+
+typedef u32 QuadCornerFlags;
+#define QuadCornerFlag_TopLeft     (1 << (u32)QuadCorner_TopLeft)
+#define QuadCornerFlag_TopRight    (1 << (u32)QuadCorner_TopRight)
+#define QuadCornerFlag_BottomLeft  (1 << (u32)QuadCorner_BottomLeft)
+#define QuadCornerFlag_BottomRight (1 << (u32)QuadCorner_BottomRight)
 
 struct BlockVertex
 {

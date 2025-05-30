@@ -69,11 +69,11 @@ const float3 Block_Normals[6] = float3[](
     float3( 0, 0,-1)
 );
 
-#define BlockCorner uint
-#define BlockCorner_TopLeft     0
-#define BlockCorner_TopRight    1
-#define BlockCorner_BottomLeft  2
-#define BlockCorner_BottomRight 3
+#define QuadCorner uint
+#define QuadCorner_TopLeft     0
+#define QuadCorner_TopRight    1
+#define QuadCorner_BottomLeft  2
+#define QuadCorner_BottomRight 3
 
 const float2 Block_Tex_Coords[4] = float2[](
     float2(0,0),
@@ -97,4 +97,9 @@ float3 RandomColor(float seed)
     result.b = Random(result.g);
 
     return result;
+}
+
+float LinearRGBToLuminance(float3 rgb)
+{
+    return dot(clamp(rgb, float3(0), float3(1)), float3(0.2126729, 0.7151522, 0.0721750));
 }
