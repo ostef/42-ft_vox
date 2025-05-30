@@ -351,14 +351,15 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
             chunk->erosion_values[surface_index] = erosion;
             chunk->peaks_and_valleys_values[surface_index] = peaks_and_valleys;
 
-            float erosion_spline = SampleSpline(&world->erosion_spline, continentalness > 0 ? continentalness * erosion : 0);
-            float continentalness_spline = SampleSpline(&world->continentalness_spline, continentalness * erosion_spline);
+            float erosion_spline = SampleSpline(&world->erosion_spline, erosion);
+            float continentalness_spline = SampleSpline(&world->continentalness_spline, continentalness);
 
-            float terrain_height = continentalness_spline;
-            chunk->terrain_height_values[surface_index] = terrain_height;
+            float terrain_height = Lerp(continentalness_spline, Water_Level, erosion_spline);
+            chunk->terrain_height_values[surface_index] = (u8)Clamp(terrain_height, 0, Chunk_Height - 1);
         }
     }
 
+    // Terrain shaping
     for (int iy = 0; iy < Chunk_Height; iy += 1)
     {
         for (int iz = 0; iz < Chunk_Size; iz += 1)
@@ -379,13 +380,38 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
 
                 float density = PerlinFractalNoise(world->density_params, world->density_offsets, perlin_x, perlin_y, perlin_z);
                 float density_bias = (base_height - iy) * squashing_factor * squashing_factor;
+                chunk->density_values[index] = density;
 
-                if (density + density_bias > 0)
+                if (iy <= base_height)
                     chunk->blocks[index] = Block_Stone;
                 else if (iy <= Water_Level)
                     chunk->blocks[index] = Block_Water;
                 else
                     chunk->blocks[index] = Block_Air;
+            }
+        }
+    }
+
+    // Terrain features (grass, dirt, etc)
+    for (int iy = 0; iy < Chunk_Height; iy += 1)
+    {
+        for (int iz = 0; iz < Chunk_Size; iz += 1)
+        {
+            for (int ix = 0; ix < Chunk_Size; ix += 1)
+            {
+                int surface_index = iz * Chunk_Size + ix;
+                int index = iy * Chunk_Size * Chunk_Size + surface_index;
+                if (chunk->blocks[index] != Block_Stone)
+                    continue;
+
+                if (iy < Water_Level)
+                    continue;
+
+                float terrain_height = chunk->terrain_height_values[surface_index];
+                if (iy == terrain_height)
+                    chunk->blocks[index] = Block_Grass;
+                else if (iy >= terrain_height - Dirt_Layer_Size)
+                    chunk->blocks[index] = Block_Dirt;
             }
         }
     }

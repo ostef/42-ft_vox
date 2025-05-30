@@ -45,6 +45,7 @@ struct Camera
 void UpdateCamera(Camera *camera);
 
 #define Water_Level (Chunk_Height - 100)
+#define Dirt_Layer_Size 4
 
 struct World
 {
@@ -95,7 +96,8 @@ struct Chunk
     float continentalness_values[Chunk_Size * Chunk_Size];
     float erosion_values[Chunk_Size * Chunk_Size];
     float peaks_and_valleys_values[Chunk_Size * Chunk_Size];
-    float terrain_height_values[Chunk_Size * Chunk_Size];
+    u8 terrain_height_values[Chunk_Size * Chunk_Size];
+    float density_values[Chunk_Height * Chunk_Size * Chunk_Size];
 };
 
 Block GetBlock(Chunk *chunk, int x, int y, int z);

@@ -2,122 +2,9 @@
 #include "World.hpp"
 #include "UI.hpp"
 
-#include <stb_image.h>
-
 #define Max_Chunk_Upload_Per_Frame 50
 
 static GfxAllocator g_frame_data_allocators[Gfx_Max_Frames_In_Flight];
-
-static GfxTexture g_block_atlas;
-
-struct LoadedImage
-{
-    u32 *pixels = null;
-    int width = 0;
-    int height = 0;
-};
-
-static Result<LoadedImage> LoadImage(String filename)
-{
-    int width, height;
-    u32 *pixels = (u32 *)stbi_load(CloneToCString(filename, temp), &width, &height, null, 4);
-    if (!pixels)
-        return Result<LoadedImage>::Bad(false);
-
-    LoadedImage result;
-    result.pixels = pixels;
-    result.width = width;
-    result.height = height;
-    if (result.width != Block_Texture_Size || result.height != Block_Texture_Size)
-    {
-        LogError(Log_Graphics, "Block texture '%.*s' has size %dx%d but we expected %dx%d", FSTR(filename), width, height, Block_Texture_Size, Block_Texture_Size);
-
-        return Result<LoadedImage>::Bad(false);
-    }
-
-    return Result<LoadedImage>::Good(result, true);
-}
-
-static void BlitPixels(u32 *dest, Vec3u dest_size, Vec3u dest_origin, LoadedImage *src_img)
-{
-    for (int y = 0; y < src_img->height; y += 1)
-    {
-        for (int x = 0; x < src_img->width; x += 1)
-        {
-            int index = dest_origin.z * dest_size.x * dest_size.y + (dest_origin.y + y) * dest_size.x + (dest_origin.x + x);
-            dest[index] = src_img->pixels[y * src_img->width + x];
-        }
-    }
-}
-
-static void LoadBlockAtlasTexture()
-{
-    u32 *pixels = Alloc<u32>(Block_Atlas_Size * Block_Atlas_Size * 6, heap);
-    memset(pixels, 0, Block_Atlas_Size * Block_Atlas_Size * 6 * sizeof(u32));
-
-    for (int i = 1; i < Block_Count; i += 1)
-    {
-        String name = Block_Infos[i].name;
-        String filename = TPrintf("Data/Blocks/%.*s.png", FSTR(name));
-        String filename_top = TPrintf("Data/Blocks/%.*s_top.png", FSTR(name));
-        String filename_bottom = TPrintf("Data/Blocks/%.*s_bottom.png", FSTR(name));
-        String filename_east = TPrintf("Data/Blocks/%.*s_east.png", FSTR(name));
-        String filename_west = TPrintf("Data/Blocks/%.*s_west.png", FSTR(name));
-        String filename_north = TPrintf("Data/Blocks/%.*s_north.png", FSTR(name));
-        String filename_south = TPrintf("Data/Blocks/%.*s_south.png", FSTR(name));
-
-        auto image = LoadImage(filename);
-        auto image_top = LoadImage(filename_top);
-        auto image_bottom = LoadImage(filename_bottom);
-        auto image_east = LoadImage(filename_east);
-        auto image_west = LoadImage(filename_west);
-        auto image_north = LoadImage(filename_north);
-        auto image_south = LoadImage(filename_south);
-        if (!image_top.ok || !image_bottom.ok || !image_east.ok || !image_west.ok || !image_north.ok || !image_south.ok)
-        {
-            Assert(image.ok, "Could not load base image for block '%.*s'", FSTR(name));
-        }
-
-        uint block_x = ((i - 1) % Block_Atlas_Num_Blocks) * Block_Texture_Size;
-        uint block_y = ((i - 1) / Block_Atlas_Num_Blocks) * Block_Texture_Size;
-        if (image_east.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_East}, &image_east.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_East}, &image.value);
-        if (image_west.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_West}, &image_west.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_West}, &image.value);
-        if (image_top.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Top}, &image_top.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Top}, &image.value);
-        if (image_bottom.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Bottom}, &image_bottom.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Bottom}, &image.value);
-        if (image_north.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_North}, &image_north.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_North}, &image.value);
-        if (image_south.ok)
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_South}, &image_south.value);
-        else
-            BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_South}, &image.value);
-    }
-
-    GfxTextureDesc desc{};
-    desc.type = GfxTextureType_Texture2DArray;
-    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
-    desc.width = Block_Atlas_Size;
-    desc.height = Block_Atlas_Size;
-    desc.array_length = 6;
-    desc.usage = GfxTextureUsage_ShaderRead;
-    g_block_atlas = GfxCreateTexture("Block Atlas", desc);
-    Assert(!IsNull(&g_block_atlas));
-
-    GfxReplaceTextureRegion(&g_block_atlas, {0,0,0}, {Block_Atlas_Size, Block_Atlas_Size, 6}, 0, 0, pixels);
-}
 
 GfxAllocator *FrameDataGfxAllocator()
 {
@@ -275,6 +162,11 @@ void InitRenderer()
 
     {
         GfxSamplerStateDesc desc{};
+        desc.min_filter = GfxSamplerFilter_Linear;
+        desc.mip_filter = GfxSamplerFilter_Linear;
+        desc.u_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        desc.v_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        desc.w_address_mode = GfxSamplerAddressMode_ClampToEdge;
         g_block_sampler = GfxCreateSamplerState("Block", desc);
     }
 }
@@ -341,6 +233,8 @@ void RenderGraphics(World *world)
 
     HandleChunkMeshGeneration(world);
 
+    GeneratePendingMipmaps(ctx.cmd_buffer);
+
     GfxCopyPass upload_pass = GfxBeginCopyPass("Upload", ctx.cmd_buffer);
     {
         UploadPendingChunkMeshes(&upload_pass, Max_Chunk_Upload_Per_Frame);
@@ -367,6 +261,7 @@ void RenderGraphics(World *world)
         },
         .texture_atlas_size={Block_Atlas_Size, Block_Atlas_Size},
         .texture_block_size={Block_Texture_Size, Block_Texture_Size},
+        .texture_block_border={Block_Texture_Border, Block_Texture_Border},
         .shadow_map={
             .resolution=(int)GetDesc(&g_shadow_map_texture).width,
             .noise_resolution=(int)GetDesc(&g_shadow_map_noise_texture).width,

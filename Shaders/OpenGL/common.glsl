@@ -43,6 +43,7 @@ struct FrameInfo
     Camera camera;
     float2 texture_atlas_size;
     float2 texture_block_size;
+    float2 texture_border_size;
     ShadowMap shadow_map;
 };
 

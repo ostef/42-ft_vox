@@ -125,6 +125,14 @@ struct GfxTextureDesc
     u32 num_mipmap_levels = 1;
 };
 
+static inline u32 GfxGetNumMipmapLevelsForWidth(u32 width)
+{
+    u32 result = (u32)ceilf(logf((float)width));
+    result = Max(result, (u32)1);
+
+    return result;
+}
+
 bool IsNull(GfxTexture *texture);
 GfxTextureDesc GetDesc(GfxTexture *texture);
 
