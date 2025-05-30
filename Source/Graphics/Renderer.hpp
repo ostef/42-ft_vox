@@ -146,8 +146,10 @@ extern GfxTexture g_shadow_map_texture;
 extern GfxSamplerState g_shadow_map_sampler;
 extern GfxTexture g_shadow_map_noise_texture;
 extern GfxSamplerState g_shadow_map_noise_sampler;
-extern float g_shadow_map_cascade_sizes[Shadow_Map_Num_Cascades];
 
+extern float g_shadow_map_cascade_sizes[Shadow_Map_Num_Cascades];
+extern float g_shadow_map_depth_extent_factor;
+extern float g_shadow_map_forward_offset;
 extern float g_shadow_map_min_depth_bias;
 extern float g_shadow_map_max_depth_bias;
 extern float g_shadow_map_normal_bias;

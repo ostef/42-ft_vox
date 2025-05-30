@@ -10,9 +10,9 @@ float g_shadow_map_cascade_sizes[Shadow_Map_Num_Cascades] = {5, 20, 50, 200};
 float g_shadow_map_depth_extent_factor = 6;
 float g_shadow_map_forward_offset = 1;
 
-float g_shadow_map_min_depth_bias = 1;
-float g_shadow_map_max_depth_bias = 5;
-float g_shadow_map_normal_bias = 10;
+float g_shadow_map_min_depth_bias = 0.2;
+float g_shadow_map_max_depth_bias = 0.5;
+float g_shadow_map_normal_bias = 150;
 float g_shadow_map_filter_radius = 1;
 
 Mat4f GetShadowMapCascadeMatrix(Vec3f light_direction, Mat4f camera_transform, int level)

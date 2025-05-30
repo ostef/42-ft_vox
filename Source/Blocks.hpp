@@ -2,6 +2,8 @@
 
 #include "Core.hpp"
 
+#define Num_Block_Meshes 2
+
 enum Block : u8
 {
     Block_Air,

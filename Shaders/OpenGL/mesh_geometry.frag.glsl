@@ -16,7 +16,6 @@ layout(binding=2) uniform sampler2DArray shadow_map_noise;
 
 flat in Block block;
 flat in BlockFace block_face;
-in float2 screen_position;
 in float3 position;
 in float3 normal;
 in float2 tex_coords;
@@ -29,7 +28,7 @@ void main()
     float3 V = normalize(frame_info.camera.position - position);
     float3 L = -frame_info.sun_direction;
 
-    float sun_shadow = 1 - SampleShadowMap(frame_info.shadow_map, shadow_map_noise, shadow_map, frame_info.sun_direction, position, normal, screen_position);
+    float sun_shadow = 1 - SampleShadowMap(frame_info.shadow_map, shadow_map_noise, shadow_map, frame_info.sun_direction, position, normal, gl_FragCoord.xy);
     vec3 sun_color = frame_info.sun_color.rgb * frame_info.sun_color.a;
 
     float3 base_color = texture(block_atlas, float3(tex_coords, block_face)).rgb;

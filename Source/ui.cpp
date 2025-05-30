@@ -1,25 +1,9 @@
 #include "UI.hpp"
 #include "Graphics/Renderer.hpp"
+#include "World.hpp"
 #include "Input.hpp"
 
 #include <stb_image.h>
-
-struct UIVertex
-{
-    Vec2f position;
-    Vec2f tex_coords;
-    Vec4f color;
-};
-
-struct UIRectElement
-{
-    Vec2f position = {};
-    Vec2f size = {};
-    GfxTexture *texture = null;
-    Vec4f color = {};
-    Vec2f uv0 = {};
-    Vec2f uv1 = {1,1};
-};
 
 #define UI_Font_Char_Width 6
 #define UI_Font_Char_Height 10
@@ -34,9 +18,9 @@ static Vec2f g_ui_cursor;
 static Vec2f g_ui_prev_elem_size;
 static bool g_ui_same_line;
 
-static Array<UIRectElement> g_ui_elements;
-static GfxTexture g_ui_font;
-static GfxTexture g_ui_white_texture;
+Array<UIRectElement> g_ui_elements;
+GfxTexture g_ui_font;
+GfxTexture g_ui_white_texture;
 
 void UIBeginFrame()
 {
@@ -531,129 +515,316 @@ bool UISplineEditor(String id, Spline *spline, Vec2f size, float min_x, float ma
     return modified;
 }
 
-static void PushRect(Array<UIVertex> *vertices, UIRectElement elem, int window_w, int window_h)
+static const char *Noise_Param_Names[] = {
+    "Density",
+    "Continentalness",
+    "Erosion",
+    "Peaks And Valleys",
+};
+
+static GfxTexture GenerateTerrainTexture(World *world, int size_in_chunks)
 {
-    Vec2f p = {elem.position.x, window_h - elem.position.y};
-    auto v = ArrayPush(vertices);
-    v->position = p;
-    v->tex_coords = {elem.uv0.x, elem.uv0.y};
-    v->color = elem.color;
+    int pixel_size = size_in_chunks * 2 * Chunk_Size;
+    u32 *pixels = Alloc<u32>(pixel_size * pixel_size, heap);
 
-    v = ArrayPush(vertices);
-    v->position = p + Vec2f{elem.size.x, -elem.size.y};
-    v->tex_coords = {elem.uv1.x, elem.uv1.y};
-    v->color = elem.color;
-
-    v = ArrayPush(vertices);
-    v->position = p + Vec2f{0, -elem.size.y};
-    v->tex_coords = {elem.uv0.x, elem.uv1.y};
-    v->color = elem.color;
-
-    v = ArrayPush(vertices);
-    v->position = p;
-    v->tex_coords = {elem.uv0.x, elem.uv0.y};
-    v->color = elem.color;
-
-    v = ArrayPush(vertices);
-    v->position = p + Vec2f{elem.size.x, 0};
-    v->tex_coords = {elem.uv1.x, elem.uv0.y};
-    v->color = elem.color;
-
-    v = ArrayPush(vertices);
-    v->position = p + Vec2f{elem.size.x, -elem.size.y};
-    v->tex_coords = {elem.uv1.x, elem.uv1.y};
-    v->color = elem.color;
-}
-
-static GfxPipelineState g_ui_pipeline;
-static GfxSamplerState g_ui_texture_sampler;
-
-static void InitPipeline()
-{
-    GfxPipelineStateDesc desc{};
-    desc.rasterizer_state.cull_face = GfxPolygonFace_None;
-    desc.color_formats[0] = GfxGetSwapchainPixelFormat();
-    desc.blend_states[0] = {.enabled=true};
-    desc.vertex_shader = GetVertexShader("ui");
-    desc.fragment_shader = GetFragmentShader("ui");
-
-    Array<GfxVertexInputDesc> vertex_layout = {.allocator=heap};
-    ArrayPush(&vertex_layout, {
-        .format=GfxVertexFormat_Float2,
-        .offset=offsetof(UIVertex, position),
-        .stride=sizeof(UIVertex),
-        .buffer_index=Default_Vertex_Buffer_Index
-    });
-    ArrayPush(&vertex_layout, {
-        .format=GfxVertexFormat_Float2,
-        .offset=offsetof(UIVertex, tex_coords),
-        .stride=sizeof(UIVertex),
-        .buffer_index=Default_Vertex_Buffer_Index
-    });
-    ArrayPush(&vertex_layout, {
-        .format=GfxVertexFormat_Float4,
-        .offset=offsetof(UIVertex, color),
-        .stride=sizeof(UIVertex),
-        .buffer_index=Default_Vertex_Buffer_Index
-    });
-    desc.vertex_layout = MakeSlice(vertex_layout);
-
-    g_ui_pipeline = GfxCreatePipelineState("UI", desc);
-
-    GfxSamplerStateDesc sampler_desc{};
-    sampler_desc.min_filter = GfxSamplerFilter_Nearest;
-    sampler_desc.mag_filter = GfxSamplerFilter_Nearest;
-    g_ui_texture_sampler = GfxCreateSamplerState("UI", sampler_desc);
-}
-
-void UIRender(FrameRenderContext *ctx)
-{
-    if (IsNull(&g_ui_pipeline))
+    for (int z = -size_in_chunks; z < size_in_chunks; z += 1)
     {
-        InitPipeline();
-        Assert(!IsNull(&g_ui_pipeline));
-    }
-
-    if (g_ui_elements.count <= 0)
-        return;
-
-    int window_w, window_h;
-    SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
-
-    // Allocate vertices
-    Array<UIVertex> vertices{};
-    vertices.allocated = g_ui_elements.count * 6;
-    vertices.data = Alloc<UIVertex>(vertices.allocated, FrameDataAllocator());
-    foreach (i, g_ui_elements)
-        PushRect(&vertices, g_ui_elements[i], window_w, window_h);
-
-    s64 vertices_offset = GetBufferOffset(FrameDataGfxAllocator(), vertices.data);
-
-    GfxRenderPassDesc pass_desc{};
-    GfxSetColorAttachment(&pass_desc, 0, GfxGetSwapchainTexture());
-
-    auto pass = GfxBeginRenderPass("UI", ctx->cmd_buffer, pass_desc);
-    {
-        GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
-        GfxSetPipelineState(&pass, &g_ui_pipeline);
-
-        GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, FrameDataBuffer(), vertices_offset, vertices.count * sizeof(UIVertex), sizeof(UIVertex));
-
-        auto vertex_frame_info = GfxGetVertexStageBinding(&g_ui_pipeline, "frame_info_buffer");
-        auto fragment_texture = GfxGetFragmentStageBinding(&g_ui_pipeline, "ui_texture");
-
-        GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), ctx->frame_info_offset, sizeof(Std140FrameInfo));
-        GfxSetSamplerState(&pass, fragment_texture, &g_ui_texture_sampler);
-
-        // @Todo @Speed: batch draw calls
-        foreach (i, g_ui_elements)
+        for (int x = -size_in_chunks; x < size_in_chunks; x += 1)
         {
-            auto elem = g_ui_elements[i];
+            int px_min_x = (x + size_in_chunks) * Chunk_Size;
+            int px_max_x = px_min_x + Chunk_Size;
+            int px_min_y = (z + size_in_chunks) * Chunk_Size;
+            int px_max_y = px_min_y + Chunk_Size;
 
-            GfxSetTexture(&pass, fragment_texture, elem.texture ? elem.texture : &g_ui_white_texture);
+            Chunk *chunk = HashMapFind(&world->chunks_by_position, {(s16)x, (s16)z});
+            if (!chunk)
+            {
+                for (int px_y = px_min_y; px_y < px_max_y; px_y += 1)
+                {
+                    for (int px_x = px_min_x; px_x < px_max_x; px_x += 1)
+                    {
+                        int px_index = px_y * pixel_size + px_x;
+                        pixels[px_index] = 0xff000000;
+                    }
+                }
+            }
+            else
+            {
+                for (int px_y = px_min_y; px_y < px_max_y; px_y += 1)
+                {
+                    for (int px_x = px_min_x; px_x < px_max_x; px_x += 1)
+                    {
+                        int px_index = px_y * pixel_size + px_x;
 
-            GfxDrawPrimitives(&pass, 6, 1, i * 6);
+                        int chunk_x = px_x - px_min_x;
+                        int chunk_z = px_y - px_min_y;
+                        int surface_index = chunk_z * Chunk_Size + chunk_x;
+                        float terrain_height = chunk->terrain_height_values[surface_index];
+                        terrain_height /= (float)Chunk_Height;
+                        if (terrain_height > Water_Level / (float)Chunk_Height)
+                        {
+                            u32 a = (u32)Clamp(terrain_height * 255, 0, 255);
+                            pixels[px_index] = (0xff << 24) | (a << 16) | (a << 8) | a;
+                        }
+                        else
+                        {
+                            Vec4f color = {0,0,1,1};
+                            color *= terrain_height / (Water_Level / (float)Chunk_Height);
+
+                            u32 r = (u32)Clamp(color.x * 255, 0, 255);
+                            u32 g = (u32)Clamp(color.y * 255, 0, 255);
+                            u32 b = (u32)Clamp(color.z * 255, 0, 255);
+
+                            pixels[px_index] = (0xff << 24) | (b << 16) | (g << 8) | r;
+                        }
+                    }
+                }
+            }
         }
     }
-    GfxEndRenderPass(&pass);
+
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2D;
+    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+    desc.width = (u32)pixel_size;
+    desc.height = (u32)pixel_size;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    auto texture = GfxCreateTexture("Terrain", desc);
+
+    GfxReplaceTextureRegion(&texture, {0,0,0}, {desc.width, desc.height, 1}, 0, 0, pixels);
+
+    return texture;
+}
+
+static GfxTexture GenerateNoiseTexture(World *world, int param, u32 size)
+{
+    String name = Noise_Param_Names[param];
+    auto all_params = GetAllNoiseParams(world);
+
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2D;
+    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+    desc.width = size;
+    desc.height = size;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    auto texture = GfxCreateTexture(name, desc);
+
+    u32 *pixels = Alloc<u32>(size * size, heap);
+    for (u32 y = 0; y < size; y += 1)
+    {
+        for (u32 x = 0; x < size; x += 1)
+        {
+            float ix = x - size * 0.5;
+            float iy = y - size * 0.5;
+
+            float noise;
+            if (param == 0)
+                noise = PerlinFractalNoise(all_params[param], world->density_offsets, ix, 0, iy);
+            else
+                noise = PerlinFractalNoise(all_params[param], (&world->continentalness_offsets)[param - 1], ix, iy);
+
+            if (param == 3)
+                noise = 1 - Abs(3 * Abs(noise) - 2);
+
+            noise = (noise + 1) * 0.5;
+
+            u32 a = (u32)Clamp(noise * 255, 0, 255);
+            pixels[y * size + x] = (0xff << 24) | (a << 16) | (a << 8) | a;
+        }
+    }
+
+    GfxReplaceTextureRegion(&texture, {0,0,0}, {size, size, 1}, 0, 0, pixels);
+
+    return texture;
+}
+
+static void WriteSplineCSourceCode(String name, Spline *spline)
+{
+    printf("%.*s = {};\n", FSTR(name));
+    for (int i = 0; i < spline->num_points; i += 1)
+    {
+        auto p = spline->points[i];
+        printf("AddPoint(&%.*s, %.3f, %.3f, %.3f);\n", FSTR(name), p.x, p.y, p.derivative);
+    }
+    printf("\n");
+}
+
+static void ShowTerrainEditorUI(World *world)
+{
+    static int current_terrain_param;
+    static GfxTexture noise_texture;
+
+    bool regenerate = false;
+
+    const char *Directions[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+    float octant = world->camera.current_yaw / (2 * Pi);
+    octant += 0.5 / 8.0;
+    octant *= 8;
+    octant = fmodf(octant, 8);
+    if (octant < 0)
+        octant += 8;
+    if (octant >= 8)
+        octant = 0;
+
+    UIText(TPrintf("X: %.0f Y: %.0f Z: %.0f, %s", world->camera.position.x, world->camera.position.y, world->camera.position.z, Directions[(int)octant]));
+
+    auto all_noise_params = GetAllNoiseParams(world);
+
+    bool regenerate_noise = false;
+
+    UIText(TPrintf("Seed: %u", world->seed));
+    UISameLine();
+    if (UIButton("Randomize"))
+    {
+        world->seed = (u32)(GetTimeInSeconds() * 347868765);
+        regenerate = true;
+        regenerate_noise = true;
+    }
+
+    if (UIButton("Reset to default"))
+    {
+        SetDefaultNoiseParams(world);
+        regenerate_noise = true;
+        regenerate = true;
+    }
+
+    if (UIButton("<#prev_noise"))
+    {
+        current_terrain_param -= 1;
+        if (current_terrain_param < 0)
+            current_terrain_param = all_noise_params.count - 1;
+        regenerate_noise = true;
+    }
+
+    UISameLine();
+
+    if (UIButton(">#next_noise"))
+    {
+        current_terrain_param += 1;
+        if (current_terrain_param >= all_noise_params.count)
+            current_terrain_param = 0;
+        regenerate_noise = true;
+    }
+
+    UISameLine();
+
+    UIText(Noise_Param_Names[current_terrain_param]);
+
+    if (UINoiseParams(Noise_Param_Names[current_terrain_param], &all_noise_params[current_terrain_param]))
+        regenerate_noise = true;
+
+    UIFloatEdit("squashing_factor", &squashing_factor, 0, 1, 0.1);
+
+    if (UIButton("Regenerate"))
+        regenerate = true;
+
+    UIImage(&noise_texture, {200, 200}, {0,1}, {1,0});
+
+    if (current_terrain_param == 1)
+    {
+        UISplineEditor("Continentalness Spline", &world->continentalness_spline, {400, 250}, -1, 1, 0, Chunk_Height, 0.1, 1);
+
+        if (UIButton("Dump to Terminal"))
+            WriteSplineCSourceCode("world->continentalness_spline", &world->continentalness_spline);
+
+        if (UIButton("Regenerate"))
+            regenerate = true;
+    }
+    else if (current_terrain_param == 2)
+    {
+        UISplineEditor("Erosion Spline", &world->erosion_spline, {400, 250}, 0, 1, 0, 1, 0.1, 0.1);
+
+        if (UIButton("Dump to Terminal"))
+            WriteSplineCSourceCode("world->erosion_spline", &world->erosion_spline);
+
+        if (UIButton("Regenerate"))
+            regenerate = true;
+    }
+
+    // UIImage(&terrain_texture, {256, 256}, {0,1}, {1,0});
+
+    if (regenerate)
+    {
+        Camera camera = world->camera;
+
+        DestroyWorld(world);
+        InitWorld(world, world->seed);
+
+        world->camera = camera;
+    }
+
+    if (regenerate_noise || IsNull(&noise_texture))
+    {
+        if (!IsNull(&noise_texture))
+            GfxDestroyTexture(&noise_texture);
+
+        noise_texture = GenerateNoiseTexture(world, current_terrain_param, Chunk_Size * g_settings.render_distance * 2);
+    }
+
+    // if (regenerate && !IsNull(&terrain_texture))
+    //     GfxDestroyTexture(&terrain_texture);
+
+    // if (IsNull(&terrain_texture) && world->num_generated_chunks == world->all_chunks.count)
+    //     terrain_texture = GenerateTerrainTexture(world, g_settings.render_distance);
+}
+
+static void ShowGraphicsEditorUI(World *world)
+{
+    UIText("~~ Shadow Map ~~");
+
+    int resolution = (int)GetDesc(&g_shadow_map_texture).width;
+    if (UIIntEdit("resolution", &resolution, 128, 8192, 128))
+        RecreateShadowMapTexture((u32)resolution);
+
+    UIFloatEdit("depth extent factor", &g_shadow_map_depth_extent_factor, 1, 20);
+    UIFloatEdit("forward offset", &g_shadow_map_forward_offset, 0, 1, 0.1);
+    UIFloatEdit("min depth bias", &g_shadow_map_min_depth_bias, 0, 10);
+    UIFloatEdit("max depth bias", &g_shadow_map_max_depth_bias, 0, 10);
+    UIFloatEdit("normal bias", &g_shadow_map_normal_bias, 0, 1000, 5);
+    UIFloatEdit("filter radius", &g_shadow_map_filter_radius, 0.1, 5, 0.1);
+
+    for (int i = 0; i < Shadow_Map_Num_Cascades; i += 1)
+        UIFloatEdit(TPrintf("cascade size [%d]", i), &g_shadow_map_cascade_sizes[i], 1, 500);
+}
+
+enum ActiveEditor
+{
+    ActiveEditor_Terrain,
+    ActiveEditor_Graphics,
+    ActiveEditor_Count,
+};
+
+static const char *Active_Editor_Names[] = {
+    "Terrain", "Graphics",
+};
+
+void UpdateUI(World *world)
+{
+    static ActiveEditor active_editor;
+
+    UIBeginFrame();
+
+    if (UIButton("<#active_editor"))
+    {
+        active_editor = (ActiveEditor)((int)active_editor - 1);
+        if ((int)active_editor < 0)
+            active_editor = (ActiveEditor)((int)ActiveEditor_Count - 1);
+    }
+
+    UISameLine();
+    UIText(Active_Editor_Names[active_editor]);
+    UISameLine();
+
+    if (UIButton(">#active_editor"))
+    {
+        active_editor = (ActiveEditor)((int)active_editor + 1);
+        if ((int)active_editor == ActiveEditor_Count)
+            active_editor = (ActiveEditor)0;
+    }
+
+    switch (active_editor)
+    {
+    case ActiveEditor_Terrain: ShowTerrainEditorUI(world); break;
+    case ActiveEditor_Graphics: ShowGraphicsEditorUI(world); break;
+    }
 }

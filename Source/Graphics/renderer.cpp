@@ -460,7 +460,7 @@ void RenderGraphics(World *world)
         GfxEndRenderPass(&pass);
     }
 
-    UIRender(&ctx);
+    UIRenderPass(&ctx);
 
     GfxExecuteCommandBuffer(ctx.cmd_buffer);
 
