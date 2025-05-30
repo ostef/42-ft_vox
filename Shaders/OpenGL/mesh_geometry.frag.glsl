@@ -29,12 +29,12 @@ void main()
     float3 L = -frame_info.sun_direction;
 
     float sun_shadow = 1 - SampleShadowMap(frame_info.shadow_map, shadow_map_noise, shadow_map, frame_info.sun_direction, position, normal, gl_FragCoord.xy);
-    vec3 sun_color = frame_info.sun_color.rgb * frame_info.sun_color.a;
+    float3 sun_color = frame_info.sun_color.rgb * frame_info.sun_color.a;
 
-    float3 base_color = texture(block_atlas, float3(tex_coords, block_face)).rgb;
-    float3 brdf = CalculateBRDF(base_color, 0, 1, N, V, L, sun_color * sun_shadow);
-    float3 ambient = base_color * 0.3;
+    float4 base_color = texture(block_atlas, float3(tex_coords, block_face));
+    float3 brdf = CalculateBRDF(base_color.rgb, 0, 1, N, V, L, sun_color * sun_shadow);
+    float3 ambient = base_color.rgb * 0.3;
     float3 color = ambient + brdf;
 
-    frag_color = float4(color,1);
+    frag_color = float4(color, base_color.a);
 }

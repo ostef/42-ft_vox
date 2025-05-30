@@ -118,7 +118,7 @@ void MarkChunkDirty(World *world, Chunk *chunk);
 
 struct ChunkMeshWork
 {
-    Array<BlockVertex> vertices = {};
-    Array<u32> indices = {};
+    Array<BlockVertex> vertices[ChunkMeshType_Count] = {};
+    Array<u32> indices[ChunkMeshType_Count] = {};
     Chunk *chunk = null;
 };

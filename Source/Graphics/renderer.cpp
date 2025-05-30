@@ -152,6 +152,7 @@ void InitRenderer()
         pipeline_desc.vertex_shader = GetVertexShader("mesh_geometry");
         pipeline_desc.fragment_shader = GetFragmentShader("mesh_geometry");
         pipeline_desc.color_formats[0] = GfxPixelFormat_RGBAFloat32;
+        pipeline_desc.blend_states[0] = {.enabled=true};
         pipeline_desc.depth_format = GfxPixelFormat_DepthFloat32;
         pipeline_desc.depth_state = {.enabled=true, .write_enabled=true};
         pipeline_desc.vertex_layout = MakeBlockVertexLayout();
@@ -319,20 +320,26 @@ void RenderGraphics(World *world)
             GfxSetTexture(&pass, fragment_shadow_map_noise, &g_shadow_map_noise_texture);
             GfxSetSamplerState(&pass, fragment_shadow_map_noise, &g_shadow_map_noise_sampler);
 
-            foreach (i, world->all_chunks)
+            for (int type = 0; type < ChunkMeshType_Count; type += 1)
             {
-                auto chunk = world->all_chunks[i];
-                if (!chunk->mesh.uploaded)
-                    continue;
+                foreach (i, world->all_chunks)
+                {
+                    auto chunk = world->all_chunks[i];
+                    if (!chunk->mesh.uploaded)
+                        continue;
 
-                Vec2f chunk_position = Vec2f{(float)chunk->x * Chunk_Size, (float)chunk->z * Chunk_Size};
-                Vec2f camera_position = Vec2f{world->camera.position.x, world->camera.position.z};
-                if (Length(camera_position - chunk_position) > g_settings.render_distance * Chunk_Size)
-                    continue;
+                    Vec2f chunk_position = Vec2f{(float)chunk->x * Chunk_Size, (float)chunk->z * Chunk_Size};
+                    Vec2f camera_position = Vec2f{world->camera.position.x, world->camera.position.z};
+                    if (Length(camera_position - chunk_position) > g_settings.render_distance * Chunk_Size)
+                        continue;
 
-                GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
+                    GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
 
-                GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, chunk->mesh.index_count, GfxIndexType_Uint32, 1, 0, 0, (u32)i);
+                    u32 vertex_offset = chunk->mesh.mesh_type_vertex_offsets[type];
+                    u32 index_offset = chunk->mesh.mesh_type_index_offsets[type];
+                    u32 index_count = chunk->mesh.mesh_type_index_counts[type];
+                    GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, index_count, GfxIndexType_Uint32, 1, vertex_offset, index_offset, (u32)i);
+                }
             }
         }
         GfxEndRenderPass(&pass);

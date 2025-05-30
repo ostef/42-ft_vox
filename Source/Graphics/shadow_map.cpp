@@ -152,7 +152,10 @@ void ShadowMapPass(FrameRenderContext *ctx)
 
             GfxSetVertexBuffer(&pass, Default_Vertex_Buffer_Index, &chunk->mesh.vertex_buffer, 0, sizeof(BlockVertex) * chunk->mesh.vertex_count, sizeof(BlockVertex));
 
-            GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, chunk->mesh.index_count, GfxIndexType_Uint32, Shadow_Map_Num_Cascades);
+            u32 vertex_offset = chunk->mesh.mesh_type_vertex_offsets[ChunkMeshType_Solid];
+            u32 index_offset = chunk->mesh.mesh_type_index_offsets[ChunkMeshType_Solid];
+            u32 index_count = chunk->mesh.mesh_type_index_counts[ChunkMeshType_Solid];
+            GfxDrawIndexedPrimitives(&pass, &chunk->mesh.index_buffer, index_count, GfxIndexType_Uint32, Shadow_Map_Num_Cascades, vertex_offset, index_offset);
         }
     }
     GfxEndRenderPass(&pass);

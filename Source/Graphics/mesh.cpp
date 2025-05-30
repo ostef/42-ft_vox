@@ -3,8 +3,8 @@
 
 struct ChunkMeshUpload
 {
-    Array<BlockVertex> vertices = {};
-    Array<u32> indices = {};
+    Array<BlockVertex> vertices[ChunkMeshType_Count] = {};
+    Array<u32> indices[ChunkMeshType_Count] = {};
     Mesh *mesh = null;
 };
 
@@ -180,18 +180,21 @@ static void PushBlockVertices(
     }
 }
 
-static void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices);
+static void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices[ChunkMeshType_Count], Array<u32> indices[ChunkMeshType_Count]);
 
 void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
 {
     auto work = (ChunkMeshWork *)data;
     auto chunk = work->chunk;
 
-    work->vertices.allocator = heap;
-    ArrayReserve(&work->vertices, chunk->mesh.vertex_count);
+    for (int i = 0; i < ChunkMeshType_Count; i += 1)
+    {
+        work->vertices[i].allocator = heap;
+        ArrayReserve(&work->vertices[i], chunk->mesh.vertex_count);
 
-    work->indices.allocator = heap;
-    ArrayReserve(&work->indices, chunk->mesh.index_count);
+        work->indices[i].allocator = heap;
+        ArrayReserve(&work->indices[i], chunk->mesh.index_count);
+    }
 
     Vec3f chunk_position = Vec3f{(float)chunk->x * Chunk_Size, 0, (float)chunk->z * Chunk_Size};
     for (int y = 0; y < Chunk_Height; y += 1)
@@ -201,10 +204,10 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
             for (int x = 0; x < Chunk_Size; x += 1)
             {
                 Block block = GetBlock(chunk, x, y, z);
-                if (block == Block_Air)
+                BlockInfo info = Block_Infos[block];
+                if (info.mesh_id < 0)
                     continue;
 
-                BlockInfo info = Block_Infos[block];
                 float block_height = GetBlockHeight(chunk, block, x, y, z);
 
                 auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
@@ -228,7 +231,7 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
                 if (Block_Infos[bottom].mesh_id != info.mesh_id || GetBlockHeight(chunk, bottom, x, y - 1, z) != block_height)
                     faces |= BlockFaceFlag_Bottom;
 
-                PushBlockVertices(&work->vertices, &work->indices, block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
+                PushBlockVertices(&work->vertices[info.mesh_id], &work->indices[info.mesh_id], block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
             }
         }
     }
@@ -263,8 +266,16 @@ void HandleChunkMeshGeneration(World *world)
     {
         auto work = (ChunkMeshWork *)generated_chunk_meshes[i];
 
-        work->chunk->mesh.vertex_count = (u32)work->vertices.count;
-        work->chunk->mesh.index_count = (u32)work->indices.count;
+        work->chunk->mesh.vertex_count = 0;
+        work->chunk->mesh.index_count = 0;
+
+        s64 total_vertex_count = 0;
+        s64 total_index_count = 0;
+        for (int j = 0; j < ChunkMeshType_Count; j += 1)
+        {
+            work->chunk->mesh.vertex_count += work->vertices[j].count;
+            work->chunk->mesh.index_count += work->indices[j].count;
+        }
 
         // Recreate buffers if they are too small
         if (work->chunk->mesh.vertex_count * sizeof(BlockVertex) > (u64)GetDesc(&work->chunk->mesh.vertex_buffer).size)
@@ -304,29 +315,34 @@ void CancelChunkMeshUpload(Chunk *chunk)
         auto upload = g_pending_chunk_mesh_uploads[i];
         if (upload.mesh == &chunk->mesh)
         {
-            ArrayFree(&upload.vertices);
-            ArrayFree(&upload.indices);
+            for (int j = 0; j < ChunkMeshType_Count; i += 1)
+            {
+                ArrayFree(&upload.vertices[j]);
+                ArrayFree(&upload.indices[j]);
+            }
+
             ArrayOrderedRemoveAt(&g_pending_chunk_mesh_uploads, i);
             break;
         }
     }
 }
 
-void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32> indices)
+void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices[ChunkMeshType_Count], Array<u32> indices[ChunkMeshType_Count])
 {
-    if (vertices.count <= 0 && indices.count <= 0)
-        return;
-
     foreach (i, g_pending_chunk_mesh_uploads)
     {
         auto upload = &g_pending_chunk_mesh_uploads[i];
         if (upload->mesh == &chunk->mesh)
         {
-            ArrayFree(&upload->vertices);
-            ArrayFree(&upload->indices);
+            for (int j = 0; j < ChunkMeshType_Count; j += 1)
+            {
+                ArrayFree(&upload->vertices[j]);
+                ArrayFree(&upload->indices[j]);
 
-            upload->vertices = vertices;
-            upload->indices = indices;
+                upload->vertices[j] = vertices[j];
+                upload->indices[j] = indices[j];
+            }
+
             upload->mesh->uploaded = false;
 
             return;
@@ -334,8 +350,12 @@ void AppendChunkMeshUpload(Chunk *chunk, Array<BlockVertex> vertices, Array<u32>
     }
 
     ChunkMeshUpload upload{};
-    upload.vertices = vertices;
-    upload.indices = indices;
+    for (int i = 0; i < ChunkMeshType_Count; i += 1)
+    {
+        upload.vertices[i] = vertices[i];
+        upload.indices[i] = indices[i];
+    }
+
     upload.mesh = &chunk->mesh;
     upload.mesh->uploaded = false;
 
@@ -362,8 +382,14 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass, int max_uploads)
 
         auto upload = g_pending_chunk_mesh_uploads[i];
 
-        s64 vertices_size = upload.vertices.count * sizeof(BlockVertex);
-        s64 indices_size = upload.indices.count * sizeof(u32);
+        s64 vertices_size = 0;
+        s64 indices_size = 0;
+        for (int j = 0; j < ChunkMeshType_Count; j += 1)
+        {
+            vertices_size += upload.vertices[j].count * sizeof(BlockVertex);
+            indices_size += upload.indices[j].count * sizeof(u32);
+        }
+
         s64 total_size = vertices_size + indices_size;
 
         void *ptr = Alloc(total_size, allocator);
@@ -373,11 +399,31 @@ void UploadPendingChunkMeshes(GfxCopyPass *pass, int max_uploads)
         s64 vertices_offset = GetBufferOffset(gfx_allocator, ptr);
         s64 indices_offset = vertices_offset + vertices_size;
 
-        memcpy(ptr, upload.vertices.data, vertices_size);
-        memcpy((u8 *)ptr + vertices_size, upload.indices.data, indices_size);
+        s64 vertices_memcpy_offset = 0;
+        for (int j = 0; j < ChunkMeshType_Count; j += 1)
+        {
+            upload.mesh->mesh_type_vertex_offsets[j] = vertices_memcpy_offset / sizeof(BlockVertex);
 
-        ArrayFree(&upload.vertices);
-        ArrayFree(&upload.indices);
+            memcpy((u8 *)ptr + vertices_memcpy_offset, upload.vertices[j].data, upload.vertices[j].count * sizeof(BlockVertex));
+            vertices_memcpy_offset += upload.vertices[j].count * sizeof(BlockVertex);
+        }
+
+        ptr = (u8 *)ptr + vertices_size;
+        s64 indices_memcpy_offset = 0;
+        for (int j = 0; j < ChunkMeshType_Count; j += 1)
+        {
+            upload.mesh->mesh_type_index_offsets[j] = indices_memcpy_offset / sizeof(u32);
+            upload.mesh->mesh_type_index_counts[j] = upload.indices[j].count;
+
+            memcpy((u8 *)ptr + indices_memcpy_offset, upload.indices[j].data, upload.indices[j].count * sizeof(u32));
+            indices_memcpy_offset += upload.indices[j].count * sizeof(u32);
+        }
+
+        for (int j = 0; j < ChunkMeshType_Count; j += 1)
+        {
+            ArrayFree(&upload.vertices[j]);
+            ArrayFree(&upload.indices[j]);
+        }
 
         GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, vertices_offset, &upload.mesh->vertex_buffer, 0, vertices_size);
         GfxCopyBufferToBuffer(pass, &gfx_allocator->buffer, indices_offset, &upload.mesh->index_buffer, 0, indices_size);

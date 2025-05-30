@@ -770,7 +770,7 @@ static void ShowTerrainEditorUI(World *world)
 
 static void ShowGraphicsEditorUI(World *world)
 {
-    UIText("~~ Shadow Map ~~");
+    UIText("== Shadow Map ==");
 
     int resolution = (int)GetDesc(&g_shadow_map_texture).width;
     if (UIIntEdit("resolution", &resolution, 128, 8192, 128))

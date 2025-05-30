@@ -110,12 +110,25 @@ struct BlockVertex
 
 Slice<GfxVertexInputDesc> MakeBlockVertexLayout();
 
+enum ChunkMeshType : u8
+{
+    ChunkMeshType_Solid,
+    ChunkMeshType_Translucent,
+
+    ChunkMeshType_Count,
+};
+
 struct Mesh
 {
     GfxBuffer vertex_buffer = {};
     GfxBuffer index_buffer = {};
     u32 vertex_count = 0;
     u32 index_count = 0;
+
+    u32 mesh_type_vertex_offsets[ChunkMeshType_Count] = {};
+    u32 mesh_type_index_offsets[ChunkMeshType_Count] = {};
+    u32 mesh_type_index_counts[ChunkMeshType_Count] = {};
+
     bool uploaded = false;
 };
 
