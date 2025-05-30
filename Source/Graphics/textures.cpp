@@ -3,6 +3,12 @@
 
 #include <stb_image.h>
 
+// To set a texture for a block you need to add a .png file in the Data/Blocks directory
+// with the name of the block. Additionally, if a texture suffixed with _east, _west, _north,
+// _south, _top, _bottom is found it is loaded for the face.
+// We add a border around the textures to make sure we don't bleed into other block cells when
+// sampling using linear filtering, and we generate mipmaps for the texture atlas to reduce aliasing
+
 GfxTexture g_block_atlas;
 
 struct LoadedImage
