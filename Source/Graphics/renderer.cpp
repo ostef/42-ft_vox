@@ -148,7 +148,7 @@ void InitRenderer()
 
     {
         GfxPipelineStateDesc pipeline_desc{};
-        pipeline_desc.vertex_shader = GetVertexShader("post_processing");
+        pipeline_desc.vertex_shader = GetVertexShader("screen_space");
         pipeline_desc.fragment_shader = GetFragmentShader("post_processing");
         pipeline_desc.color_formats[0] = GfxGetSwapchainPixelFormat();
 
@@ -189,6 +189,14 @@ void InitRenderer()
         desc.w_address_mode = GfxSamplerAddressMode_ClampToEdge;
         g_block_sampler = GfxCreateSamplerState("Block", desc);
     }
+
+    // GfxBeginFrame();
+
+    // GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Sky LUTs");
+    // RenderSkyLUTs(&cmd_buffer);
+    // GfxExecuteCommandBuffer(&cmd_buffer);
+
+    // GfxSubmitFrame();
 }
 
 static void RecreateRenderTargets()
@@ -261,8 +269,8 @@ void RenderGraphics(World *world)
     }
     GfxEndCopyPass(&upload_pass);
 
-    Std140FrameInfo *frame_info = Alloc<Std140FrameInfo>(FrameDataAllocator());
-    *frame_info = {
+    ctx.frame_info = Alloc<Std140FrameInfo>(FrameDataAllocator());
+    *ctx.frame_info = {
         .window_pixel_size={(float)window_w, (float)window_h},
         .window_scale_factor=1,
         .sun_direction=world->sun_direction,
@@ -301,9 +309,29 @@ void RenderGraphics(World *world)
                 {g_shadow_map_cascade_sizes[3],0,0,0},
             },
         },
+        .sky={
+            .transmittance_LUT_resolution=g_sky.transmittance_LUT_resolution,
+            .multi_scatter_LUT_resolution=g_sky.multi_scatter_LUT_resolution,
+            .color_LUT_resolution=g_sky.color_LUT_resolution,
+            .num_transmittance_steps=g_sky.num_transmittance_steps,
+            .num_multi_scatter_steps=g_sky.num_multi_scatter_steps,
+            .num_color_scattering_steps=g_sky.num_color_scattering_steps,
+            .rayleigh_scattering_coeff=g_sky.rayleigh_scattering_coeff,
+            .rayleigh_absorption_coeff=g_sky.rayleigh_absorption_coeff,
+            .mie_scattering_coeff=g_sky.mie_scattering_coeff,
+            .mie_absorption_coeff=g_sky.mie_absorption_coeff,
+            .mie_asymmetry_value=g_sky.mie_asymmetry_value,
+            .ozone_absorption_coeff=g_sky.ozone_absorption_coeff,
+            .ground_albedo=g_sky.ground_albedo,
+            .ground_level=g_sky.ground_level,
+            .ground_radius=g_sky.ground_radius,
+            .atmosphere_radius=g_sky.atmosphere_radius,
+        },
     };
-    Assert(frame_info != null);
-    ctx.frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), frame_info);
+    Assert(ctx.frame_info != null);
+    ctx.frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), ctx.frame_info);
+
+    RenderSkyLUTs(ctx.cmd_buffer);
 
     ShadowMapPass(&ctx);
 
@@ -313,8 +341,6 @@ void RenderGraphics(World *world)
         GfxSetDepthAttachment(&pass_desc, &g_main_depth_texture);
         GfxClearColor(&pass_desc, 0, {0.106, 0.478, 0.82,1});
         GfxClearDepth(&pass_desc, 1);
-
-        static const u64 a = offsetof(Std140FrameInfo, shadow_map.cascade_sizes[1]);
 
         auto pass = GfxBeginRenderPass("Chunk", ctx.cmd_buffer, pass_desc);
         {

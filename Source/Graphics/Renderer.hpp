@@ -200,9 +200,12 @@ void CancelChunkMeshUpload(Chunk *chunk);
 
 extern bool g_show_debug_atlas;
 
+struct Std140FrameInfo;
+
 struct FrameRenderContext
 {
     GfxCommandBuffer *cmd_buffer = null;
+    Std140FrameInfo *frame_info = null;
     s64 frame_info_offset = -1;
     World *world = null;
 };
@@ -248,6 +251,51 @@ void InitShadowMap();
 void RecreateShadowMapTexture(u32 resolution);
 void ShadowMapPass(FrameRenderContext *ctx);
 
+struct SkyAtmosphere
+{
+    Vec2u transmittance_LUT_resolution = {256, 64};
+    Vec2u multi_scatter_LUT_resolution = {32, 32};
+    Vec2u color_LUT_resolution = {200, 200};
+
+    int num_transmittance_steps = 40;
+    int num_multi_scatter_steps = 20;
+    int num_color_scattering_steps = 32;
+
+    // Rayleigh theory represents the behavior of light when interacting
+    // with air molecules. We assume that light is never absorbed and
+    // can only scatter around
+    Vec3f rayleigh_scattering_coeff = {5.802, 13.558, 33.1};
+    float rayleigh_absorption_coeff = 0;
+
+    // Mie theory represents the behavior of light when interacting with
+    // aerosols such as dust or pollution. Light can be scattered or absorbed
+    float mie_scattering_coeff = 3.996;
+    float mie_absorption_coeff = 4.4;
+    // Between -1 and 1, > 0 light is scattered forward,
+    // < 0 light is scattered backwards
+    float mie_asymmetry_value = 0.8;
+
+    // Ozone is a specific component of the Earth that has been identified
+    // as important for representing its atmosphere, since it is key to
+    // achieving sky-blue colors when the sun is at the horizon. Ozone does
+    // not contribute to scattering; it only absorbs light
+    Vec3f ozone_absorption_coeff = {0.650, 1.881, 0.085};
+
+    Vec3f ground_albedo = {0.3, 0.3, 0.3};
+    float ground_level = 6.3602;
+    float ground_radius = 6.360;
+    float atmosphere_radius = 6.460;
+
+    GfxTexture transmittance_LUT = {};
+    GfxTexture multi_scatter_LUT = {};
+    GfxTexture color_LUT = {};
+};
+
+extern SkyAtmosphere g_sky;
+
+void RenderSkyLUTs(GfxCommandBuffer *cmd_buffer);
+void SkyAtmospherePass(FrameRenderContext *ctx);
+
 #pragma pack(push, 1)
 
 struct Std140Camera
@@ -267,6 +315,30 @@ struct Std140Camera
     Mat4f transform;
     Mat4f view;
     Mat4f projection;
+};
+
+struct Std140SkyAtmosphere
+{
+    Vec2u transmittance_LUT_resolution;
+    Vec2u multi_scatter_LUT_resolution;
+    Vec2u color_LUT_resolution;
+    int num_transmittance_steps;
+    int num_multi_scatter_steps;
+    int num_color_scattering_steps;
+    u32 _padding0[3] = {0};
+    Vec3f rayleigh_scattering_coeff;
+    float rayleigh_absorption_coeff;
+    float mie_scattering_coeff;
+    float mie_absorption_coeff;
+    float mie_asymmetry_value;
+    u32 _padding1 = 0;
+    Vec3f ozone_absorption_coeff;
+    u32 _padding2 = 0;
+    Vec3f ground_albedo;
+    float ground_level;
+    float ground_radius;
+    float atmosphere_radius;
+    u32 _padding3[2] = {0};
 };
 
 struct Std140ShadowMap
@@ -295,6 +367,7 @@ struct Std140FrameInfo
     Vec2f texture_block_border;
     u32 _padding2[2] = {0};
     Std140ShadowMap shadow_map;
+    Std140SkyAtmosphere sky;
 };
 
 #pragma pack(pop)

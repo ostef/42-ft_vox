@@ -63,6 +63,12 @@ struct Vec2f
     Vec2f &operator /=(float b);
 };
 
+struct Vec2u
+{
+    u32 x = 0;
+    u32 y = 0;
+};
+
 struct Vec3f
 {
     float x = 0;

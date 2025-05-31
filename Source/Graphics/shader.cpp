@@ -3,8 +3,11 @@
 static ShaderFile g_shader_files[] = {
     {.name="mesh_geometry"},
     {.name="shadow_map_geometry"},
+    {.name="screen_space"},
     {.name="post_processing"},
     {.name="ui"},
+    {.name="Sky/transmittance_LUT"},
+    {.name="Sky/multi_scatter_LUT"},
 };
 
 static bool LoadShader(ShaderFile *file)
