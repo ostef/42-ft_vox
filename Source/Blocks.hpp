@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.hpp"
+#include "Graphics/Renderer.hpp"
 
 #define Num_Block_Meshes 2
 
@@ -11,6 +12,7 @@ enum Block : u8
     Block_Dirt,
     Block_Grass,
     Block_Water,
+    Block_Gravel,
 
     Block_Count,
 };
@@ -18,13 +20,14 @@ enum Block : u8
 struct BlockInfo
 {
     String name = "";
-    int mesh_id = 0;
+    ChunkMeshType mesh_type = ChunkMeshType_Solid;
 };
 
 static const BlockInfo Block_Infos[] = {
-    {.name="air", .mesh_id=-1},
+    {.name="air", .mesh_type=ChunkMeshType_Air},
     {.name="stone"},
     {.name="dirt"},
     {.name="grass"},
-    {.name="water", .mesh_id=1},
+    {.name="water", .mesh_type=ChunkMeshType_Translucent},
+    {.name="gravel"},
 };

@@ -205,33 +205,33 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
             {
                 Block block = GetBlock(chunk, x, y, z);
                 BlockInfo info = Block_Infos[block];
-                if (info.mesh_id < 0)
+                if (info.mesh_type == ChunkMeshType_Air)
                     continue;
 
                 float block_height = GetBlockHeight(chunk, block, x, y, z);
 
                 auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
                 auto west   = GetBlockInNeighbors(chunk, x - 1, y, z);
-                auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
-                auto bottom = GetBlockInNeighbors(chunk, x, y - 1, z);
                 auto north  = GetBlockInNeighbors(chunk, x, y, z + 1);
                 auto south  = GetBlockInNeighbors(chunk, x, y, z - 1);
+                auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
+                auto bottom = GetBlockInNeighbors(chunk, x, y - 1, z);
 
                 BlockFaceFlags faces = 0;
-                if (Block_Infos[east].mesh_id != info.mesh_id || GetBlockHeight(chunk, east, x + 1, y, z) != block_height)
+                if (Block_Infos[east].mesh_type != info.mesh_type || GetBlockHeight(chunk, east, x + 1, y, z) != block_height)
                     faces |= BlockFaceFlag_East;
-                if (Block_Infos[west].mesh_id != info.mesh_id || GetBlockHeight(chunk, west, x - 1, y, z) != block_height)
+                if (Block_Infos[west].mesh_type != info.mesh_type || GetBlockHeight(chunk, west, x - 1, y, z) != block_height)
                     faces |= BlockFaceFlag_West;
-                if (Block_Infos[north].mesh_id != info.mesh_id || GetBlockHeight(chunk, north, x, y, z + 1) != block_height)
+                if (Block_Infos[north].mesh_type != info.mesh_type || GetBlockHeight(chunk, north, x, y, z + 1) != block_height)
                     faces |= BlockFaceFlag_North;
-                if (Block_Infos[south].mesh_id != info.mesh_id || GetBlockHeight(chunk, south, x, y, z - 1) != block_height)
+                if (Block_Infos[south].mesh_type != info.mesh_type || GetBlockHeight(chunk, south, x, y, z - 1) != block_height)
                     faces |= BlockFaceFlag_South;
-                if (Block_Infos[top].mesh_id != info.mesh_id || block_height != 1)
+                if (Block_Infos[top].mesh_type != info.mesh_type || block_height != 1)
                     faces |= BlockFaceFlag_Top;
-                if (Block_Infos[bottom].mesh_id != info.mesh_id || GetBlockHeight(chunk, bottom, x, y - 1, z) != block_height)
+                if (Block_Infos[bottom].mesh_type != info.mesh_type || GetBlockHeight(chunk, bottom, x, y - 1, z) != 1)
                     faces |= BlockFaceFlag_Bottom;
 
-                PushBlockVertices(&work->vertices[info.mesh_id], &work->indices[info.mesh_id], block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
+                PushBlockVertices(&work->vertices[info.mesh_type], &work->indices[info.mesh_type], block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
             }
         }
     }

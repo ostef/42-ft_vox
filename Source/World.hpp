@@ -46,6 +46,7 @@ void UpdateCamera(Camera *camera);
 
 #define Water_Level (Chunk_Height - 100)
 #define Dirt_Layer_Size 4
+#define Underwater_Gravel_Layer_Size 3
 
 struct World
 {

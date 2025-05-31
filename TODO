@@ -1,0 +1,11 @@
+* Voxel ambient occlusion
+* Wave water vertices
+* Biomes
+* Grass coloring
+* Day sky atmosphere
+* Night sky atmosphere
+* Clouds
+* Fog
+    - Fog color takes the color of the sky behind
+* Bloom
+* Emission

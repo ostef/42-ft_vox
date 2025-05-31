@@ -404,14 +404,20 @@ void GenerateChunkWorker(ThreadGroup *worker, void *data)
                 if (chunk->blocks[index] != Block_Stone)
                     continue;
 
-                if (iy < Water_Level)
-                    continue;
-
                 float terrain_height = chunk->terrain_height_values[surface_index];
-                if (iy == terrain_height)
-                    chunk->blocks[index] = Block_Grass;
-                else if (iy >= terrain_height - Dirt_Layer_Size)
-                    chunk->blocks[index] = Block_Dirt;
+
+                if (iy < Water_Level)
+                {
+                    if (iy >= terrain_height - Underwater_Gravel_Layer_Size)
+                        chunk->blocks[index] = Block_Gravel;
+                }
+                else
+                {
+                    if (iy == terrain_height)
+                        chunk->blocks[index] = Block_Grass;
+                    else if (iy >= terrain_height - Dirt_Layer_Size)
+                        chunk->blocks[index] = Block_Dirt;
+                }
             }
         }
     }

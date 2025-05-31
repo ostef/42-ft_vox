@@ -116,9 +116,10 @@ struct BlockVertex
 
 Slice<GfxVertexInputDesc> MakeBlockVertexLayout();
 
-enum ChunkMeshType : u8
+enum ChunkMeshType : s8
 {
-    ChunkMeshType_Solid,
+    ChunkMeshType_Air = -1,
+    ChunkMeshType_Solid = 0,
     ChunkMeshType_Translucent,
 
     ChunkMeshType_Count,
