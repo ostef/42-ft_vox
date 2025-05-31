@@ -10,6 +10,7 @@
 // sampling using linear filtering, and we generate mipmaps for the texture atlas to reduce aliasing
 
 GfxTexture g_block_atlas;
+GfxTexture g_debug_block_face_atlas;
 
 struct LoadedImage
 {
@@ -79,7 +80,7 @@ static Result<LoadedImage> LoadImage(String filename)
     return Result<LoadedImage>::Good(result, true);
 }
 
-void LoadBlockAtlasTexture()
+static void LoadBlockAtlasTexture()
 {
     u32 *pixels = Alloc<u32>(Block_Atlas_Size * Block_Atlas_Size * 6, heap);
     memset(pixels, 0, Block_Atlas_Size * Block_Atlas_Size * 6 * sizeof(u32));
@@ -148,6 +149,51 @@ void LoadBlockAtlasTexture()
 
     GfxReplaceTextureRegion(&g_block_atlas, {0,0,0}, {Block_Atlas_Size, Block_Atlas_Size, 6}, 0, 0, pixels);
     QueueGenerateMipmaps(&g_block_atlas);
+}
+
+static void LoadDebugBlockFaceAtlasTexture()
+{
+    u32 *pixels = Alloc<u32>(Block_Atlas_Size * Block_Atlas_Size * 6, heap);
+    memset(pixels, 0, Block_Atlas_Size * Block_Atlas_Size * 6 * sizeof(u32));
+
+    for (int i = 1; i < Block_Count; i += 1)
+    {
+        auto image_top = LoadImage("Data/Blocks/block_face_top.png");
+        auto image_bottom = LoadImage("Data/Blocks/block_face_bottom.png");
+        auto image_east = LoadImage("Data/Blocks/block_face_east.png");
+        auto image_west = LoadImage("Data/Blocks/block_face_west.png");
+        auto image_north = LoadImage("Data/Blocks/block_face_north.png");
+        auto image_south = LoadImage("Data/Blocks/block_face_south.png");
+
+        uint block_x = ((i - 1) % Block_Atlas_Num_Blocks) * Block_Texture_Size;
+        uint block_y = ((i - 1) / Block_Atlas_Num_Blocks) * Block_Texture_Size;
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_East}, &image_east.value, Block_Texture_Border);
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_West}, &image_west.value, Block_Texture_Border);
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Top}, &image_top.value, Block_Texture_Border);
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_Bottom}, &image_bottom.value, Block_Texture_Border);
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_North}, &image_north.value, Block_Texture_Border);
+        BlitPixels(pixels, {Block_Atlas_Size, Block_Atlas_Size, 6}, {block_x, block_y, BlockFace_South}, &image_south.value, Block_Texture_Border);
+    }
+
+    GfxTextureDesc desc{};
+    desc.type = GfxTextureType_Texture2DArray;
+    desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+    desc.width = Block_Atlas_Size;
+    desc.height = Block_Atlas_Size;
+    desc.array_length = 6;
+    desc.num_mipmap_levels = Block_Texture_Border - 1;
+    desc.usage = GfxTextureUsage_ShaderRead;
+    g_debug_block_face_atlas = GfxCreateTexture("Debug Block Face Atlas", desc);
+    Assert(!IsNull(&g_debug_block_face_atlas));
+
+    GfxReplaceTextureRegion(&g_debug_block_face_atlas, {0,0,0}, {Block_Atlas_Size, Block_Atlas_Size, 6}, 0, 0, pixels);
+    QueueGenerateMipmaps(&g_debug_block_face_atlas);
+}
+
+void LoadAllTextures()
+{
+    LoadBlockAtlasTexture();
+    LoadDebugBlockFaceAtlasTexture();
 }
 
 static Array<GfxTexture *> g_mipmaps_to_generate;

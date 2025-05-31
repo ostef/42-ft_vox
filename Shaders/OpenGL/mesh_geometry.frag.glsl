@@ -19,6 +19,8 @@ flat in BlockFace block_face;
 in float3 position;
 in float3 normal;
 in float2 tex_coords;
+in float2 face_coords;
+in float occlusion;
 
 out float4 frag_color;
 
@@ -36,8 +38,9 @@ void main()
     float4 base_color = texture(block_atlas, float3(tex_coords, block_face));
     float roughness = 0.9 - length(base_color.rgb) * Roughness_Amplitude;
     float3 brdf = CalculateBRDF(base_color.rgb, 0, roughness, N, V, L, sun_color * sun_shadow);
-    float3 ambient = base_color.rgb * 0.3;
+    float3 ambient = mix(0.3, 1.0, occlusion) * base_color.rgb * 0.3;
     float3 color = ambient + brdf;
+    // color = mix(float3(1,0,0), base_color.rgb, occlusion);
 
     frag_color = float4(color, base_color.a);
 }

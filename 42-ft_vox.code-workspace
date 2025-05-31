@@ -21,7 +21,9 @@
 			"string": "cpp",
 			"string_view": "cpp",
 			"span": "cpp",
-			"initializer_list": "cpp"
+			"initializer_list": "cpp",
+			"typeindex": "cpp",
+			"typeinfo": "cpp"
 		}
 	}
 }

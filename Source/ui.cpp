@@ -233,7 +233,6 @@ bool UIButton(String id)
     bg.color = {0, 0, 0, 1};
 
     bool hovered = IsHovered(bg);
-
     if (hovered)
         bg.color = {0.4, 0.4, 0.4, 1};
 
@@ -242,6 +241,40 @@ bool UIButton(String id)
     UITextAt(bg.position + Vec2f{padding, padding}, text);
 
     return hovered && IsMouseButtonReleased(MouseButton_Left);
+}
+
+bool UICheckbox(String id, bool *value)
+{
+    String text = GetIdText(id);
+
+    UIText(text);
+    UISameLine();
+
+    UIRectElement bg{};
+    bg.size = {2 * UI_Font_Char_Height, 2 * UI_Font_Char_Height};
+    bg.position = LayoutElem(bg.size);
+    bg.color = {0, 0, 0, 1};
+
+    bool hovered = IsHovered(bg);
+    if (hovered)
+        bg.color = {0.4, 0.4, 0.4, 1};
+
+    ArrayPush(&g_ui_elements, bg);
+
+    bool pressed = hovered && IsMouseButtonReleased(MouseButton_Left);
+    if (pressed)
+        *value = !*value;
+
+    if (*value)
+    {
+        UIRectElement check{};
+        check.size = bg.size * 0.6;
+        check.position = bg.position + bg.size * 0.5 - check.size * 0.5;
+        check.color = {0,1,0,1};
+        ArrayPush(&g_ui_elements, check);
+    }
+
+    return pressed;
 }
 
 bool UIFloatEdit(String id, float *value, float min, float max, float step)
@@ -770,6 +803,13 @@ static void ShowTerrainEditorUI(World *world)
 
 static void ShowGraphicsEditorUI(World *world)
 {
+    UIIntEdit("render distance", &g_settings.render_distance, 8, 32);
+    UIText("");
+
+    UIText("== Debug ==");
+    UICheckbox("show debug atlas", &g_show_debug_atlas);
+    UIText("");
+
     UIText("== Shadow Map ==");
 
     int resolution = (int)GetDesc(&g_shadow_map_texture).width;
@@ -800,7 +840,7 @@ static const char *Active_Editor_Names[] = {
 
 void UpdateUI(World *world)
 {
-    static ActiveEditor active_editor;
+    static ActiveEditor active_editor = ActiveEditor_Graphics;
 
     UIBeginFrame();
 

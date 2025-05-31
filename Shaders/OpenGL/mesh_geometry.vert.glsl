@@ -6,6 +6,7 @@ layout(location = 0) in float3 v_position;
 layout(location = 1) in Block v_block;
 layout(location = 2) in BlockFace v_block_face;
 layout(location = 3) in QuadCorner v_block_corner;
+layout(location = 4) in uint v_occlusion;
 
 layout(std140) uniform frame_info_buffer
 {
@@ -22,6 +23,8 @@ flat out BlockFace block_face;
 out float3 position;
 out float3 normal;
 out float2 tex_coords;
+out float2 face_coords;
+out float occlusion;
 
 void main()
 {
@@ -40,6 +43,8 @@ void main()
     position = v_position;
     normal = Block_Normals[v_block_face];
     tex_coords = mix(tex_coords_start, tex_coords_end, Block_Tex_Coords[v_block_corner]);
+    face_coords = Block_Tex_Coords[v_block_corner];
+    occlusion = float(v_occlusion > 0);
 
     gl_Position = frame_info.camera.projection * frame_info.camera.view * float4(v_position,1);
 }

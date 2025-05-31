@@ -105,13 +105,69 @@ typedef u32 QuadCornerFlags;
 #define QuadCornerFlag_BottomLeft  (1 << (u32)QuadCorner_BottomLeft)
 #define QuadCornerFlag_BottomRight (1 << (u32)QuadCorner_BottomRight)
 
+enum BlockCorner
+{
+    BlockCorner_EastNorthTop,
+    BlockCorner_EastNorthBottom,
+    BlockCorner_EastSouthTop,
+    BlockCorner_EastSouthBottom,
+    BlockCorner_WestNorthTop,
+    BlockCorner_WestNorthBottom,
+    BlockCorner_WestSouthTop,
+    BlockCorner_WestSouthBottom,
+};
+
+typedef u32 BlockCornerFlags;
+#define BlockCornerFlag_EastNorthTop    (1 << (u32)BlockCorner_EastNorthTop)
+#define BlockCornerFlag_EastNorthBottom (1 << (u32)BlockCorner_EastNorthBottom)
+#define BlockCornerFlag_EastSouthTop    (1 << (u32)BlockCorner_EastSouthTop)
+#define BlockCornerFlag_EastSouthBottom (1 << (u32)BlockCorner_EastSouthBottom)
+#define BlockCornerFlag_WestNorthTop    (1 << (u32)BlockCorner_WestNorthTop)
+#define BlockCornerFlag_WestNorthBottom (1 << (u32)BlockCorner_WestNorthBottom)
+#define BlockCornerFlag_WestSouthTop    (1 << (u32)BlockCorner_WestSouthTop)
+#define BlockCornerFlag_WestSouthBottom (1 << (u32)BlockCorner_WestSouthBottom)
+
+static const Vec3f Block_Normals[6] = {
+    { 1, 0, 0},
+    {-1, 0, 0},
+    { 0, 1, 0},
+    { 0,-1, 0},
+    { 0, 0, 1},
+    { 0, 0,-1},
+};
+static const Vec3f Block_Tangents[6] = {
+    { 0, 0, 1},
+    { 0, 0,-1},
+    { 1, 0, 0},
+    { 1, 0, 0},
+    {-1, 0, 0},
+    { 1, 0, 0},
+};
+static const Vec3f Block_Bitangents[6] = {
+    { 0, 1, 0},
+    { 0, 1, 0},
+    { 0, 0, 1},
+    { 0, 0,-1},
+    { 0, 1, 0},
+    { 0, 1, 0},
+};
+static const Vec3f Block_Face_Start[6] = {
+    { 1, 0, 0},
+    { 0, 0, 1},
+    { 0, 1, 0},
+    { 0, 0, 0},
+    { 1, 0, 1},
+    { 0, 0, 0},
+};
+
 struct BlockVertex
 {
     Vec3f position;
     float block_height;
-    int block;
-    int block_face;
-    int block_corner;
+    uint block;
+    uint block_face;
+    uint block_corner;
+    uint occlusion;
 };
 
 Slice<GfxVertexInputDesc> MakeBlockVertexLayout();
@@ -142,6 +198,8 @@ struct Mesh
 void GenerateChunkMeshWorker(ThreadGroup *group, void *data);
 void CancelChunkMeshUpload(Chunk *chunk);
 
+extern bool g_show_debug_atlas;
+
 struct FrameRenderContext
 {
     GfxCommandBuffer *cmd_buffer = null;
@@ -159,8 +217,9 @@ void RenderGraphics(World *world);
 #define Block_Atlas_Size (Block_Texture_Size * Block_Atlas_Num_Blocks)
 
 extern GfxTexture g_block_atlas;
+extern GfxTexture g_debug_block_face_atlas;
 
-void LoadBlockAtlasTexture();
+void LoadAllTextures();
 void QueueGenerateMipmaps(GfxTexture *texture);
 void GeneratePendingMipmaps(GfxCommandBuffer *cmd_buffer);
 

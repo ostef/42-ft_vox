@@ -19,6 +19,97 @@ GfxAllocator *CurrentChunkMeshGfxAllocator()
     return &g_chunk_upload_allocators[GfxGetBackbufferIndex()];
 }
 
+union SurroundingBlocks
+{
+    Block blocks[3 * 3 * 3];
+    struct
+    {
+        Block bottom_south_west;
+        Block bottom_south;
+        Block bottom_south_east;
+        Block bottom_west;
+        Block bottom;
+        Block bottom_east;
+        Block bottom_north_west;
+        Block bottom_north;
+        Block bottom_north_east;
+        Block south_west;
+        Block south;
+        Block south_east;
+        Block west;
+        Block center;
+        Block east;
+        Block north_west;
+        Block north;
+        Block north_east;
+        Block top_south_west;
+        Block top_south;
+        Block top_south_east;
+        Block top_west;
+        Block top;
+        Block top_east;
+        Block top_north_west;
+        Block top_north;
+        Block top_north_east;
+    };
+};
+
+static void SetBlock(SurroundingBlocks *blocks, int x, int y, int z, Block block)
+{
+    if (x < -1 || x > 1)
+        return;
+    if (y < -1 || y > 1)
+        return;
+    if (z < -1 || z > 1)
+        return;
+
+    blocks->blocks[(y + 1) * 3 * 3 + (z + 1) * 3 + (x + 1)] = block;
+}
+
+static Block GetBlock(SurroundingBlocks *blocks, int x, int y, int z)
+{
+    if (x < -1 || x > 1)
+        return Block_Air;
+    if (y < -1 || y > 1)
+        return Block_Air;
+    if (z < -1 || z > 1)
+        return Block_Air;
+
+    return blocks->blocks[(y + 1) * 3 * 3 + (z + 1) * 3 + (x + 1)];
+}
+
+static float GetBlockHeight(SurroundingBlocks *blocks, int x, int y, int z)
+{
+    Block block = GetBlock(blocks, x, y, z);
+    Block above = GetBlock(blocks, x, y + 1, z);
+    if (block == Block_Water && above != Block_Water)
+        return 14 / 16.0;
+
+    return 1;
+}
+
+static uint GetOcclusionFactor(SurroundingBlocks *blocks, BlockFace face, int face_u, int face_v)
+{
+    Vec3f normal = Block_Normals[face];
+    Vec3f tangent = Block_Tangents[face];
+    Vec3f bitangent = Block_Bitangents[face];
+
+    int side_u = face_u * 2 - 1;
+    int side_v = face_v * 2 - 1;
+    Vec3f p_side0  = normal + tangent * side_u;
+    Vec3f p_side1  = normal + bitangent * side_v;
+    Vec3f p_corner = normal + tangent * side_u + bitangent * side_v;
+    Block side0  = GetBlock(blocks, (int)p_side0.x, (int)p_side0.y, (int)p_side0.z);
+    Block side1  = GetBlock(blocks, (int)p_side1.x, (int)p_side1.y, (int)p_side1.z);
+    Block corner = GetBlock(blocks, (int)p_corner.x, (int)p_corner.y, (int)p_corner.z);
+
+    if (side0 != Block_Air || side1 != Block_Air || corner != Block_Air)
+        return 0;
+
+    // return 3 - (side0 == Block_Air) - (side1 == Block_Air) - (corner == Block_Air);
+    return 1;
+}
+
 static BlockVertex *PushVertex(Array<BlockVertex> *vertices, Block block, float block_height, BlockFace face, QuadCorner corner)
 {
     auto v = ArrayPush(vertices);
@@ -30,153 +121,151 @@ static BlockVertex *PushVertex(Array<BlockVertex> *vertices, Block block, float 
     return v;
 }
 
+static void PushBlockFace(
+    Array<BlockVertex> *vertices, Array<u32> *indices,
+    Block block,
+    BlockFace face,
+    Vec3f block_position,
+    float block_height,
+    int o00, int o11, int o01, int o10
+)
+{
+    Vec3f p00 = Block_Face_Start[face];
+    Vec3f t = Block_Tangents[face];
+    Vec3f b = Block_Bitangents[face];
+
+    if (face != BlockFace_Bottom && face != BlockFace_Top)
+        b *= block_height;
+    else if (face == BlockFace_Top)
+        p00.y *= block_height;
+    p00 += block_position;
+
+    u32 index_start = (u32)vertices->count;
+
+    auto v = PushVertex(vertices, block, block_height, face, QuadCorner_BottomLeft);
+    v->position = p00;
+    v->occlusion = o00;
+
+    v = PushVertex(vertices, block, block_height, face, QuadCorner_TopRight);
+    v->position = p00 + t + b;
+    v->occlusion = o11;
+
+    v = PushVertex(vertices, block, block_height, face, QuadCorner_TopLeft);
+    v->position = p00 + b;
+    v->occlusion = o01;
+
+    v = PushVertex(vertices, block, block_height, face, QuadCorner_BottomRight);
+    v->position = p00 + t;
+    v->occlusion = o10;
+
+    if (o00 + o11 == 0 || o01 + o10 == 1)
+    {
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+    }
+    else
+    {
+        ArrayPush(indices, index_start + 0);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 2);
+        ArrayPush(indices, index_start + 3);
+        ArrayPush(indices, index_start + 1);
+        ArrayPush(indices, index_start + 2);
+    }
+}
+
 static void PushBlockVertices(
     Array<BlockVertex> *vertices, Array<u32> *indices,
     Block block,
     Vec3f position,
-    BlockFaceFlags visible_faces,
-    float block_height
+    SurroundingBlocks *surroundings
 )
 {
+    BlockInfo info = Block_Infos[block];
+    if (info.mesh_type == ChunkMeshType_Air)
+        return;
+
+    float block_height = GetBlockHeight(surroundings, 0, 0, 0);
+
+    BlockFaceFlags visible_faces = 0;
+    if (Block_Infos[surroundings->east].mesh_type != info.mesh_type || GetBlockHeight(surroundings, 1, 0, 0) != block_height)
+        visible_faces |= BlockFaceFlag_East;
+    if (Block_Infos[surroundings->west].mesh_type != info.mesh_type || GetBlockHeight(surroundings, -1, 0, 0) != block_height)
+        visible_faces |= BlockFaceFlag_West;
+    if (Block_Infos[surroundings->north].mesh_type != info.mesh_type || GetBlockHeight(surroundings, 0, 0, 1) != block_height)
+        visible_faces |= BlockFaceFlag_North;
+    if (Block_Infos[surroundings->south].mesh_type != info.mesh_type || GetBlockHeight(surroundings, 0, 0, -1) != block_height)
+        visible_faces |= BlockFaceFlag_South;
+    if (Block_Infos[surroundings->top].mesh_type != info.mesh_type || block_height != 1)
+        visible_faces |= BlockFaceFlag_Top;
+    if (Block_Infos[surroundings->bottom].mesh_type != info.mesh_type || GetBlockHeight(surroundings, 0, -1, 0) != 1)
+        visible_faces |= BlockFaceFlag_Bottom;
+
     if (!visible_faces || block == Block_Air)
         return;
 
-    u32 index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_East)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{1,0,0};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_East, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_East, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_East, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_East, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_TopRight);
-        v->position = position + Vec3f{1,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_TopLeft);
-        v->position = position + Vec3f{1,block_height,0};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_East, QuadCorner_BottomRight);
-        v->position = position + Vec3f{1,0,1};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_East, position, block_height, o00, o11, o01, o10);
     }
 
-    index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_West)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{0,0,1};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_West, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_West, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_West, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_West, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_TopRight);
-        v->position = position + Vec3f{0,block_height,0};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_TopLeft);
-        v->position = position + Vec3f{0,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_West, QuadCorner_BottomRight);
-        v->position = position + Vec3f{0,0,0};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_West, position, block_height, o00, o11, o01, o10);
     }
 
-    index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_Top)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{0,block_height,0};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_Top, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_Top, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_Top, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_Top, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_TopRight);
-        v->position = position + Vec3f{1,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_TopLeft);
-        v->position = position + Vec3f{0,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_Top, QuadCorner_BottomRight);
-        v->position = position + Vec3f{1,block_height,0};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_Top, position, block_height, o00, o11, o01, o10);
     }
 
-    index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_Bottom)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{0,0,0};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_Bottom, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_Bottom, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_Bottom, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_Bottom, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_TopRight);
-        v->position = position + Vec3f{1,0,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_TopLeft);
-        v->position = position + Vec3f{1,0,0};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_Bottom, QuadCorner_BottomRight);
-        v->position = position + Vec3f{0,0,1};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_Bottom, position, block_height, o00, o11, o01, o10);
     }
 
-    index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_North)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{1,0,1};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_North, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_North, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_North, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_North, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_TopRight);
-        v->position = position + Vec3f{0,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_TopLeft);
-        v->position = position + Vec3f{1,block_height,1};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_North, QuadCorner_BottomRight);
-        v->position = position + Vec3f{0,0,1};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_North, position, block_height, o00, o11, o01, o10);
     }
 
-    index_start = (u32)vertices->count;
     if (visible_faces & BlockFaceFlag_South)
     {
-        auto v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_BottomLeft);
-        v->position = position + Vec3f{0,0,0};
+        int o00 = GetOcclusionFactor(surroundings, BlockFace_South, 0, 0);
+        int o11 = GetOcclusionFactor(surroundings, BlockFace_South, 1, 1);
+        int o01 = GetOcclusionFactor(surroundings, BlockFace_South, 0, 1);
+        int o10 = GetOcclusionFactor(surroundings, BlockFace_South, 1, 0);
 
-        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_TopRight);
-        v->position = position + Vec3f{1,block_height,0};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_TopLeft);
-        v->position = position + Vec3f{0,block_height,0};
-
-        v = PushVertex(vertices, block, block_height, BlockFace_South, QuadCorner_BottomRight);
-        v->position = position + Vec3f{1,0,0};
-
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 1);
-        ArrayPush(indices, index_start + 2);
-        ArrayPush(indices, index_start + 0);
-        ArrayPush(indices, index_start + 3);
-        ArrayPush(indices, index_start + 1);
+        PushBlockFace(vertices, indices, block, BlockFace_South, position, block_height, o00, o11, o01, o10);
     }
 }
 
@@ -208,30 +297,20 @@ void GenerateChunkMeshWorker(ThreadGroup *group, void *data)
                 if (info.mesh_type == ChunkMeshType_Air)
                     continue;
 
-                float block_height = GetBlockHeight(chunk, block, x, y, z);
+                SurroundingBlocks surroundings;
+                for (int yy = -1; yy <= 1; yy += 1)
+                {
+                    for (int zz = -1; zz <= 1; zz += 1)
+                    {
+                        for (int xx = -1; xx <= 1; xx += 1)
+                        {
+                            Block block = GetBlockInNeighbors(chunk, x + xx, y + yy, z + zz);
+                            SetBlock(&surroundings, xx, yy, zz, block);
+                        }
+                    }
+                }
 
-                auto east   = GetBlockInNeighbors(chunk, x + 1, y, z);
-                auto west   = GetBlockInNeighbors(chunk, x - 1, y, z);
-                auto north  = GetBlockInNeighbors(chunk, x, y, z + 1);
-                auto south  = GetBlockInNeighbors(chunk, x, y, z - 1);
-                auto top    = GetBlockInNeighbors(chunk, x, y + 1, z);
-                auto bottom = GetBlockInNeighbors(chunk, x, y - 1, z);
-
-                BlockFaceFlags faces = 0;
-                if (Block_Infos[east].mesh_type != info.mesh_type || GetBlockHeight(chunk, east, x + 1, y, z) != block_height)
-                    faces |= BlockFaceFlag_East;
-                if (Block_Infos[west].mesh_type != info.mesh_type || GetBlockHeight(chunk, west, x - 1, y, z) != block_height)
-                    faces |= BlockFaceFlag_West;
-                if (Block_Infos[north].mesh_type != info.mesh_type || GetBlockHeight(chunk, north, x, y, z + 1) != block_height)
-                    faces |= BlockFaceFlag_North;
-                if (Block_Infos[south].mesh_type != info.mesh_type || GetBlockHeight(chunk, south, x, y, z - 1) != block_height)
-                    faces |= BlockFaceFlag_South;
-                if (Block_Infos[top].mesh_type != info.mesh_type || block_height != 1)
-                    faces |= BlockFaceFlag_Top;
-                if (Block_Infos[bottom].mesh_type != info.mesh_type || GetBlockHeight(chunk, bottom, x, y - 1, z) != 1)
-                    faces |= BlockFaceFlag_Bottom;
-
-                PushBlockVertices(&work->vertices[info.mesh_type], &work->indices[info.mesh_type], block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, faces, block_height);
+                PushBlockVertices(&work->vertices[info.mesh_type], &work->indices[info.mesh_type], block, chunk_position + Vec3f{(float)x, (float)y, (float)z}, &surroundings);
             }
         }
     }

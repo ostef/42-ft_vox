@@ -6,6 +6,8 @@
 
 static GfxAllocator g_frame_data_allocators[Gfx_Max_Frames_In_Flight];
 
+bool g_show_debug_atlas = false;
+
 GfxAllocator *FrameDataGfxAllocator()
 {
     return &g_frame_data_allocators[GfxGetBackbufferIndex()];
@@ -123,13 +125,19 @@ Slice<GfxVertexInputDesc> MakeBlockVertexLayout()
         .stride=sizeof(BlockVertex),
         .buffer_index=Default_Vertex_Buffer_Index
     });
+    ArrayPush(&vertex_layout, {
+        .format=GfxVertexFormat_UInt,
+        .offset=offsetof(BlockVertex, occlusion),
+        .stride=sizeof(BlockVertex),
+        .buffer_index=Default_Vertex_Buffer_Index
+    });
 
     return MakeSlice(vertex_layout);
 }
 
 void InitRenderer()
 {
-    LoadBlockAtlasTexture();
+    LoadAllTextures();
 
     for (int i = 0; i < Gfx_Max_Frames_In_Flight; i += 1)
         InitGfxAllocator(&g_frame_data_allocators[i], TPrintf("Frame Data Allocator %d", i), Frame_Data_Allocator_Capacity);
@@ -153,6 +161,7 @@ void InitRenderer()
         pipeline_desc.vertex_shader = GetVertexShader("mesh_geometry");
         pipeline_desc.fragment_shader = GetFragmentShader("mesh_geometry");
         pipeline_desc.color_formats[0] = GfxPixelFormat_RGBAFloat32;
+        // pipeline_desc.rasterizer_state = {.fill_mode=GfxFillMode_Lines};
         pipeline_desc.blend_states[0] = {.enabled=true};
         pipeline_desc.depth_format = GfxPixelFormat_DepthFloat32;
         pipeline_desc.depth_state = {.enabled=true, .write_enabled=true};
@@ -321,7 +330,11 @@ void RenderGraphics(World *world)
             GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), ctx.frame_info_offset, sizeof(Std140FrameInfo));
             GfxSetBuffer(&pass, fragment_frame_info, FrameDataBuffer(), ctx.frame_info_offset, sizeof(Std140FrameInfo));
 
-            GfxSetTexture(&pass, fragment_block_atlas, &g_block_atlas);
+            if (g_show_debug_atlas)
+                GfxSetTexture(&pass, fragment_block_atlas, &g_debug_block_face_atlas);
+            else
+                GfxSetTexture(&pass, fragment_block_atlas, &g_block_atlas);
+
             GfxSetSamplerState(&pass, fragment_block_atlas, &g_block_sampler);
 
             GfxSetTexture(&pass, fragment_shadow_map, &g_shadow_map_texture);

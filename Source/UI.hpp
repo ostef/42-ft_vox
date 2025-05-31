@@ -36,6 +36,7 @@ void UIImage(GfxTexture *texture, Vec2f size, Vec2f uv0 = {0,0}, Vec2f uv1 = {1,
 void UITextAt(Vec2f position, String text);
 void UIText(String text);
 bool UIButton(String id);
+bool UICheckbox(String id, bool *value);
 bool UIFloatEdit(String id, float *value, float min, float max, float step = 1);
 bool UIIntEdit(String id, int *value, int min, int max, int step = 1);
 bool UINoiseParams(String id, NoiseParams *params);
