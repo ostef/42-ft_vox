@@ -12,5 +12,8 @@ out float4 frag_color;
 void main()
 {
     float3 color = FXAA(main_texture, position, 1 / vec2(textureSize(main_texture, 0))).rgb;
+    color = ApplyToneMapping(color);
+    color = LinearTosRGB(color);
+
     frag_color = vec4(color, 1);
 }

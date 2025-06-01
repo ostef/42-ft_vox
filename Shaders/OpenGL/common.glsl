@@ -3,8 +3,11 @@
 #define float4 vec4
 #define float3x3 mat3
 #define float4x4 mat4
+#define uint2 uvec2
 
 #define Pi 3.14159265359
+#define Degs_To_Rads (Pi / 180.0)
+#define Rads_To_Degs (180.0 / Pi)
 
 #define lerp mix
 
@@ -25,9 +28,9 @@ struct Camera
 
 struct SkyAtmosphere
 {
-    uvec2 transmittance_LUT_resolution;
-    uvec2 multi_scatter_LUT_resolution;
-    uvec2 color_LUT_resolution;
+    uint2 transmittance_LUT_resolution;
+    uint2 multi_scatter_LUT_resolution;
+    uint2 color_LUT_resolution;
 
     int num_transmittance_steps;
     int num_multi_scatter_steps;
@@ -76,8 +79,8 @@ struct FrameInfo
 };
 
 const float2 Screen_Space_Position[6] = float2[](
-    float2(0,0), float2(1,1), float2(0,1),
-    float2(0,0), float2(1,0), float2(1,1)
+    float2(0,0), float2(1,0), float2(1,1),
+    float2(0,0), float2(1,1), float2(0,1)
 );
 
 #define BlockFace uint
