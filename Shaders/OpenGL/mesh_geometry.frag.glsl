@@ -46,10 +46,24 @@ void main()
     const float Roughness_Amplitude = 0.4;
 
     float4 base_color = texture(block_atlas, float3(tex_coords, block_face));
+    float metallic = 0;
     float roughness = 0.9 - length(base_color.rgb) * Roughness_Amplitude;
-    float3 brdf = CalculateBRDF(base_color.rgb, 0, roughness, N, V, L, sun_color);
-    float3 ambient = mix(0.3, 1.0, occlusion) * base_color.rgb * 0.3;
+
+    float3 brdf = CalculateBRDF(base_color.rgb, metallic, roughness, N, V, L, sun_color);
+
+    // @Todo: this is a simplification
+    float3 sky_irradiance = GetColorNoToneMapping(frame_info.sky, sky_transmittance_LUT, sky_color_LUT, -frame_info.sun_direction, cross(-frame_info.sun_direction, float3(1,0,0)));
+    float3 ambient = CalculateAmbientDiffuseBRDF(base_color.rgb, metallic, roughness, N, V, sky_irradiance / Pi);
+    ambient *= lerp(0.3, 1.0, occlusion);
+
     float3 color = ambient + brdf;
+
+    float3 fog_color = float3(1,1,1);
+    float fog_distance  = length(position - frame_info.camera.position);
+    float fog_value = 1 - exp(-pow(0.001 * fog_distance, 2));
+    fog_value = clamp(fog_value, 0, 1);
+
+    color = lerp(color, fog_color, fog_value);
 
     frag_color = float4(color, base_color.a);
 }

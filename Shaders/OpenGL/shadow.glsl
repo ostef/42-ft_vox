@@ -1,3 +1,6 @@
+#ifndef SHADOW_GLSL
+#define SHADOW_GLSL
+
 #define Shadow_Map_Num_Filtering_Samples_Sqrt 8
 #define Shadow_Map_Num_Filtering_Samples (Shadow_Map_Num_Filtering_Samples_Sqrt * Shadow_Map_Num_Filtering_Samples_Sqrt)
 
@@ -77,3 +80,5 @@ float SampleShadowMap(
 
     return shadow_value / float(Shadow_Map_Num_Filtering_Samples);
 }
+
+#endif

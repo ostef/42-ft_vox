@@ -1,3 +1,6 @@
+#ifndef SKY_SKY_GLSL
+#define SKY_SKY_GLSL
+
 #include "../common.glsl"
 
 // Azimuth: 0 = positive Z
@@ -336,3 +339,5 @@ float3 GetColor(
 
 //     return lum;
 // }
+
+#endif

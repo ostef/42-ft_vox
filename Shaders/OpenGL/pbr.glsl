@@ -1,3 +1,6 @@
+#ifndef PBR_GLSL
+#define PBR_GLSL
+
 // https://graphicscompendium.com/gamedev/15-pbr
 // https://graphicscompendium.com/references/cook-torrance
 // https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
@@ -83,3 +86,30 @@ float3 CalculateBRDF(
 
     return light_Lo;
 }
+
+float3 CalculateAmbientDiffuseBRDF(
+    float3 albedo, float metallic, float roughness,
+    float3 N, float3 V,
+    float3 irradiance
+)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    // Irradiance comes from all directions, hence L == N:
+    // L = N
+    // H = V + L = V + N
+    float HdotV = max(dot(V + N, V), 0.0);
+    float3 F0 = float3(0.04);
+    F0 = lerp(F0, albedo, metallic);
+
+    float3 F = FresnelSchlickWithRoughness(HdotV, F0, roughness);
+
+    float3 diffuse = irradiance * albedo;
+
+    float3 kS = F;
+    float3 kD = float3(1) - kS;
+    kD *= 1.0 - metallic;
+
+    return kD * diffuse;
+}
+
+#endif

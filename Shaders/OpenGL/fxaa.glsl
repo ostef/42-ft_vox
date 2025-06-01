@@ -1,3 +1,6 @@
+#ifndef FXAA_GLSL
+#define FXAA_GLSL
+
 // I don't really understand this yet, I just implemented it quickly from this reference
 // https://blog.simonrodriguez.fr/articles/2016/07/implementing_fxaa.html
 // This algorithm detects edges by looking at the luminance value of the neighboring
@@ -164,3 +167,5 @@ float4 FXAA(sampler2D tex, float2 tex_coords, float2 texel_size)
 
     return texture(tex, final_uv);
 }
+
+#endif

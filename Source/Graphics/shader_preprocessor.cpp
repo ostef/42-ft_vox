@@ -131,12 +131,6 @@ static bool AddFile(ShaderPreprocessor *pp, String filename)
 
     filename = GetAbsoluteFilename(filename, temp);
 
-    foreach (i, pp->all_loaded_files)
-    {
-        if (filename == pp->all_loaded_files[i])
-            return true;
-    }
-
     foreach (i, pp->file_stack)
     {
         if (pp->file_stack[i].filename == filename)

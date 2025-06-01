@@ -52,7 +52,7 @@ struct World
 {
     u32 seed;
 
-    float sun_polar = 0;
+    float sun_polar = Pi * 0.4;
     float sun_azimuth = 0;
     Camera camera {};
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};

@@ -1,3 +1,6 @@
+#ifndef COMMON_GLSL
+#define COMMON_GLSL
+
 #define float2 vec2
 #define float3 vec3
 #define float4 vec4
@@ -229,3 +232,5 @@ float LinearizeDepth(float x, float znear, float zfar)
 {
     return znear * zfar / (zfar + x * (znear - zfar));
 }
+
+#endif
