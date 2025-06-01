@@ -164,8 +164,28 @@ float3 SampleLUT(
         clamp(0.5 + 0.5 * sun_cos_zenith_angle, 0.0, 1.0),
         clamp((height - sky.ground_radius) / (sky.atmosphere_radius - sky.ground_radius), 0.0, 1.0)
     );
+    // uv.y = 1 - uv.y;
 
     return texture(LUT, uv).rgb;
+}
+
+float3 SampleColorLUT(
+    in SkyAtmosphere sky,
+    in sampler2D LUT,
+    float3 sun_direction,
+    float3 ray_direction
+)
+{
+    float2 sun_angles = CartesianToSpherical(sun_direction);
+    float2 angles = CartesianToSpherical(ray_direction);
+    float azimuth_angle = angles.x - sun_angles.x;
+    float polar_angle = angles.y;
+
+    float height = sky.ground_level;
+    float horizon_angle = Acos(sqrt(height * height - sky.ground_radius * sky.ground_radius) / height) - 0.5 * Pi;
+    polar_angle -= horizon_angle;
+
+    return texture(LUT, SphericalToUV(azimuth_angle, polar_angle)).rgb;
 }
 
 // float3 SampleColorLUT(
@@ -241,59 +261,67 @@ float3 SunWithBloom(float3 ray_direction, float3 sun_direction)
     return float3(gaussian_bloom + inv_bloom);
 }
 
-// float3 GetColorNoSunNoToneMapping(
-//     float3 sun_direction,
-//     float3 ray_direction
-// )
-// {
-//     return SampleColorLUT(color_LUTs, sun_direction, ray_direction);
-// }
+float3 GetColorNoSunNoToneMapping(
+    in SkyAtmosphere sky,
+    in sampler2D color_LUT,
+    float3 sun_direction,
+    float3 ray_direction
+)
+{
+    return SampleColorLUT(sky, color_LUT, sun_direction, ray_direction);
+}
 
-// float3 GetColorNoToneMapping(
-//     float3 sun_direction,
-//     float3 ray_direction
-// )
-// {
-//     float3 lum = GetColorNoSunNoToneMapping(sun_direction, ray_direction);
+float3 GetColorNoToneMapping(
+    in SkyAtmosphere sky,
+    in sampler2D transmittance_LUT,
+    in sampler2D color_LUT,
+    float3 sun_direction,
+    float3 ray_direction
+)
+{
+    float3 lum = GetColorNoSunNoToneMapping(sky, color_LUT, sun_direction, ray_direction);
 
-//     // Bloom should be added at the end, but this is subtle and works well.
-//     float3 sun_lum = SunWithBloom(ray_direction, sun_direction);
-//     // Use smoothstep to limit the effect, so it drops off to actual zero.
-//     sun_lum = smoothstep(0.002, 1.0, sun_lum);
-//     if (length(sun_lum) > 0)
-//     {
-//         float height = sky.ground_level;
-//         float3 view_position = float3(0, height, 0);
+    // Bloom should be added at the end, but this is subtle and works well.
+    float3 sun_lum = SunWithBloom(ray_direction, sun_direction);
+    // Use smoothstep to limit the effect, so it drops off to actual zero.
+    sun_lum = smoothstep(0.002, 1.0, sun_lum);
+    if (length(sun_lum) > 0)
+    {
+        float height = sky.ground_level;
+        float3 view_position = float3(0, height, 0);
 
-//         if (RayIntersectsSphere(view_position, ray_direction, sky.ground_radius) >= 0)
-//         {
-//             sun_lum = float3(0);
-//         }
-//         else
-//         {
-//             // If the sun value is applied to this pixel, we need to calculate the transmittance to obscure it.
-//             sun_lum *= SampleLUT(sky, transmittance_LUT, view_position, sun_direction);
-//         }
-//     }
+        if (RayIntersectsSphere(view_position, ray_direction, sky.ground_radius) >= 0)
+        {
+            sun_lum = float3(0);
+        }
+        else
+        {
+            // If the sun value is applied to this pixel, we need to calculate the transmittance to obscure it.
+            sun_lum *= SampleLUT(sky, transmittance_LUT, view_position, sun_direction);
+        }
+    }
 
-//     lum += sun_lum;
+    lum += sun_lum;
 
-//     return lum;
-// }
+    return lum;
+}
 
-// float3 GetColor(
-//     float3 sun_direction,
-//     float3 ray_direction
-// )
-// {
-//     float3 lum = GetColorNoToneMapping(sun_direction, ray_direction);
+float3 GetColor(
+    in SkyAtmosphere sky,
+    in sampler2D transmittance_LUT,
+    in sampler2D color_LUT,
+    float3 sun_direction,
+    float3 ray_direction
+)
+{
+    float3 lum = GetColorNoToneMapping(sky, transmittance_LUT, color_LUT, sun_direction, ray_direction);
 
-//     lum *= 20;
-//     lum = pow(lum, float3(1.3));
-//     lum /= (smoothstep(0.0, 0.2, clamp(sun_direction.y, 0.0, 1.0)) * 2 + 0.15);
+    lum *= 20;
+    lum = pow(lum, float3(1.3));
+    lum /= (smoothstep(0.0, 0.2, clamp(sun_direction.y, 0.0, 1.0)) * 2 + 0.15);
 
-//     return lum;
-// }
+    return lum;
+}
 
 // float3 GetColorNoSun(
 //     float3 sun_direction,

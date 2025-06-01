@@ -8,6 +8,8 @@ static ShaderFile g_shader_files[] = {
     {.name="ui"},
     {.name="Sky/transmittance_LUT"},
     {.name="Sky/multi_scatter_LUT"},
+    {.name="Sky/color_LUT"},
+    {.name="Sky/atmosphere"},
 };
 
 static bool LoadShader(ShaderFile *file)

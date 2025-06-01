@@ -210,6 +210,11 @@ struct FrameRenderContext
     World *world = null;
 };
 
+extern GfxTexture g_main_color_texture;
+extern GfxTexture g_main_depth_texture;
+extern GfxSamplerState g_linear_sampler;
+extern GfxSamplerState g_block_sampler;
+
 void InitRenderer();
 void RenderGraphics(World *world);
 
@@ -293,7 +298,7 @@ struct SkyAtmosphere
 
 extern SkyAtmosphere g_sky;
 
-void RenderSkyLUTs(GfxCommandBuffer *cmd_buffer);
+void RenderSkyLUTs(FrameRenderContext *ctx);
 void SkyAtmospherePass(FrameRenderContext *ctx);
 
 #pragma pack(push, 1)

@@ -7,7 +7,7 @@ layout(std140) uniform sky_buffer
     SkyAtmosphere sky;
 };
 
-uniform sampler2D transmittance_LUT;
+layout(binding=0) uniform sampler2D transmittance_LUT;
 
 in float2 position;
 

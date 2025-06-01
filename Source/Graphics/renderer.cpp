@@ -91,10 +91,10 @@ void *GfxAllocatorFunc(AllocatorOp op, s64 size, void *ptr, void *data)
 
 static GfxPipelineState g_post_processing_pipeline;
 static GfxPipelineState g_chunk_pipeline;
-static GfxTexture g_main_color_texture;
-static GfxTexture g_main_depth_texture;
-static GfxSamplerState g_linear_sampler;
-static GfxSamplerState g_block_sampler;
+GfxTexture g_main_color_texture;
+GfxTexture g_main_depth_texture;
+GfxSamplerState g_linear_sampler;
+GfxSamplerState g_block_sampler;
 
 void InitChunkMeshUploader();
 
@@ -189,14 +189,6 @@ void InitRenderer()
         desc.w_address_mode = GfxSamplerAddressMode_ClampToEdge;
         g_block_sampler = GfxCreateSamplerState("Block", desc);
     }
-
-    // GfxBeginFrame();
-
-    // GfxCommandBuffer cmd_buffer = GfxCreateCommandBuffer("Sky LUTs");
-    // RenderSkyLUTs(&cmd_buffer);
-    // GfxExecuteCommandBuffer(&cmd_buffer);
-
-    // GfxSubmitFrame();
 }
 
 static void RecreateRenderTargets()
@@ -331,8 +323,6 @@ void RenderGraphics(World *world)
     Assert(ctx.frame_info != null);
     ctx.frame_info_offset = GetBufferOffset(FrameDataGfxAllocator(), ctx.frame_info);
 
-    RenderSkyLUTs(ctx.cmd_buffer);
-
     ShadowMapPass(&ctx);
 
     {
@@ -393,6 +383,8 @@ void RenderGraphics(World *world)
         }
         GfxEndRenderPass(&pass);
     }
+
+    SkyAtmospherePass(&ctx);
 
     {
         GfxRenderPassDesc pass_desc{};

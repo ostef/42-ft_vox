@@ -4,25 +4,51 @@ SkyAtmosphere g_sky;
 
 GfxPipelineState g_sky_transmittance_LUT_pipeline;
 GfxPipelineState g_sky_multi_scatter_LUT_pipeline;
+GfxPipelineState g_sky_color_LUT_pipeline;
+GfxPipelineState g_sky_atmosphere_pipeline;
 GfxSamplerState g_sky_LUT_sampler;
+GfxSamplerState g_sky_color_LUT_sampler;
 
 static void InitSkyPipelines()
 {
     GfxPipelineStateDesc desc = {};
     desc.vertex_shader = GetVertexShader("screen_space");
     desc.fragment_shader = GetFragmentShader("Sky/transmittance_LUT");
-    desc.color_formats[0] = GfxPixelFormat_RGBAUnorm8;
+    desc.color_formats[0] = GfxPixelFormat_RGBAFloat32;
     g_sky_transmittance_LUT_pipeline = GfxCreatePipelineState("Sky Transmittance LUT", desc);
 
     desc.fragment_shader = GetFragmentShader("Sky/multi_scatter_LUT");
     g_sky_multi_scatter_LUT_pipeline = GfxCreatePipelineState("Sky Multi Scatter LUT", desc);
 
-    GfxSamplerStateDesc sampler_desc = {};
-    sampler_desc.min_filter = GfxSamplerFilter_Linear;
-    sampler_desc.mag_filter = GfxSamplerFilter_Linear;
-    sampler_desc.u_address_mode = GfxSamplerAddressMode_ClampToEdge;
-    sampler_desc.v_address_mode = GfxSamplerAddressMode_ClampToEdge;
-    g_sky_LUT_sampler = GfxCreateSamplerState("Sky LUT", sampler_desc);
+    desc.fragment_shader = GetFragmentShader("Sky/color_LUT");
+    g_sky_color_LUT_pipeline = GfxCreatePipelineState("Sky Color LUT", desc);
+
+    {
+        GfxPipelineStateDesc desc = {};
+        desc.vertex_shader = GetVertexShader("Sky/atmosphere");
+        desc.fragment_shader = GetFragmentShader("Sky/atmosphere");
+        desc.color_formats[0] = GfxPixelFormat_RGBAFloat32;
+        desc.depth_format = GfxPixelFormat_DepthFloat32;
+        desc.depth_state = {.enabled=true};
+        g_sky_atmosphere_pipeline = GfxCreatePipelineState("Sky Atmosphere", desc);
+    }
+
+    {
+        GfxSamplerStateDesc sampler_desc = {};
+        sampler_desc.min_filter = GfxSamplerFilter_Linear;
+        sampler_desc.mag_filter = GfxSamplerFilter_Linear;
+        sampler_desc.u_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        sampler_desc.v_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        g_sky_LUT_sampler = GfxCreateSamplerState("Sky LUT", sampler_desc);
+    }
+    {
+        GfxSamplerStateDesc sampler_desc = {};
+        sampler_desc.min_filter = GfxSamplerFilter_Linear;
+        sampler_desc.mag_filter = GfxSamplerFilter_Linear;
+        sampler_desc.u_address_mode = GfxSamplerAddressMode_Repeat;
+        sampler_desc.v_address_mode = GfxSamplerAddressMode_ClampToEdge;
+        g_sky_color_LUT_sampler = GfxCreateSamplerState("Sky Color LUT", sampler_desc);
+    }
 }
 
 static void SkyTransmittanceLUTPass(GfxCommandBuffer *cmd_buffer, s64 sky_offset)
@@ -31,7 +57,7 @@ static void SkyTransmittanceLUTPass(GfxCommandBuffer *cmd_buffer, s64 sky_offset
     {
         GfxTextureDesc desc = {};
         desc.type = GfxTextureType_Texture2D;
-        desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+        desc.pixel_format = GfxPixelFormat_RGBAFloat32;
         desc.width = g_sky.transmittance_LUT_resolution.x;
         desc.height = g_sky.transmittance_LUT_resolution.y;
         desc.usage = GfxTextureUsage_ShaderRead | GfxTextureUsage_RenderTarget;
@@ -60,7 +86,7 @@ static void SkyMultiScatterLUTPass(GfxCommandBuffer *cmd_buffer, s64 sky_offset)
     {
         GfxTextureDesc desc = {};
         desc.type = GfxTextureType_Texture2D;
-        desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+        desc.pixel_format = GfxPixelFormat_RGBAFloat32;
         desc.width = g_sky.multi_scatter_LUT_resolution.x;
         desc.height = g_sky.multi_scatter_LUT_resolution.y;
         desc.usage = GfxTextureUsage_ShaderRead | GfxTextureUsage_RenderTarget;
@@ -87,28 +113,49 @@ static void SkyMultiScatterLUTPass(GfxCommandBuffer *cmd_buffer, s64 sky_offset)
     GfxEndRenderPass(&pass);
 }
 
-static void SkyColorLUTPass(GfxCommandBuffer *cmd_buffer)
+static void SkyColorLUTPass(FrameRenderContext *ctx)
 {
     if (IsNull(&g_sky.color_LUT))
     {
         GfxTextureDesc desc = {};
         desc.type = GfxTextureType_Texture2D;
-        desc.pixel_format = GfxPixelFormat_RGBAUnorm8;
+        desc.pixel_format = GfxPixelFormat_RGBAFloat32;
         desc.width = g_sky.color_LUT_resolution.x;
         desc.height = g_sky.color_LUT_resolution.y;
         desc.usage = GfxTextureUsage_ShaderRead | GfxTextureUsage_RenderTarget;
         g_sky.color_LUT = GfxCreateTexture("Sky Color LUT", desc);
     }
 
+    GfxRenderPassDesc pass_desc = {};
+    GfxSetColorAttachment(&pass_desc, 0, &g_sky.color_LUT);
+
+    auto pass = GfxBeginRenderPass("Sky Color LUT", ctx->cmd_buffer, pass_desc);
+    {
+        GfxSetPipelineState(&pass, &g_sky_color_LUT_pipeline);
+        GfxSetViewport(&pass, {.width=(float)g_sky.color_LUT_resolution.x, .height=(float)g_sky.color_LUT_resolution.y});
+
+        auto fragment_frame_info_buffer = GfxGetFragmentStageBinding(&g_sky_color_LUT_pipeline, "frame_info_buffer");
+        auto fragment_transmittance_LUT = GfxGetFragmentStageBinding(&g_sky_color_LUT_pipeline, "transmittance_LUT");
+        auto fragment_multi_scatter_LUT = GfxGetFragmentStageBinding(&g_sky_color_LUT_pipeline, "multi_scatter_LUT");
+
+        GfxSetBuffer(&pass, fragment_frame_info_buffer, FrameDataBuffer(), ctx->frame_info_offset, sizeof(Std140FrameInfo));
+        GfxSetTexture(&pass, fragment_transmittance_LUT, &g_sky.transmittance_LUT);
+        GfxSetSamplerState(&pass, fragment_transmittance_LUT, &g_sky_LUT_sampler);
+        GfxSetTexture(&pass, fragment_multi_scatter_LUT, &g_sky.multi_scatter_LUT);
+        GfxSetSamplerState(&pass, fragment_multi_scatter_LUT, &g_sky_LUT_sampler);
+
+        GfxDrawPrimitives(&pass, 6, 1);
+    }
+    GfxEndRenderPass(&pass);
 }
 
-void RenderSkyLUTs(GfxCommandBuffer *cmd_buffer)
+void RenderSkyLUTs(FrameRenderContext *ctx)
 {
     if (IsNull(&g_sky_transmittance_LUT_pipeline))
         InitSkyPipelines();
 
     auto sky = Alloc<Std140SkyAtmosphere>(FrameDataAllocator());
-    *sky = {
+    *sky={
         .transmittance_LUT_resolution=g_sky.transmittance_LUT_resolution,
         .multi_scatter_LUT_resolution=g_sky.multi_scatter_LUT_resolution,
         .color_LUT_resolution=g_sky.color_LUT_resolution,
@@ -126,11 +173,40 @@ void RenderSkyLUTs(GfxCommandBuffer *cmd_buffer)
         .ground_radius=g_sky.ground_radius,
         .atmosphere_radius=g_sky.atmosphere_radius,
     };
-
     s64 sky_offset = GetBufferOffset(FrameDataGfxAllocator(), sky);
 
-    SkyTransmittanceLUTPass(cmd_buffer, sky_offset);
-    SkyMultiScatterLUTPass(cmd_buffer, sky_offset);
+    SkyTransmittanceLUTPass(ctx->cmd_buffer, sky_offset);
+    SkyMultiScatterLUTPass(ctx->cmd_buffer, sky_offset);
+    SkyColorLUTPass(ctx);
 }
 
-// void SkyAtmospherePass(FrameRenderContext *ctx);
+void SkyAtmospherePass(FrameRenderContext *ctx)
+{
+    RenderSkyLUTs(ctx);
+
+    int window_w, window_h;
+    SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
+
+    GfxRenderPassDesc pass_desc = {};
+    GfxSetColorAttachment(&pass_desc, 0, &g_main_color_texture);
+    GfxSetDepthAttachment(&pass_desc, &g_main_depth_texture);
+
+    auto pass = GfxBeginRenderPass("Sky Atmosphere", ctx->cmd_buffer, pass_desc);
+    {
+        GfxSetPipelineState(&pass, &g_sky_atmosphere_pipeline);
+        GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
+
+        auto fragment_frame_info_buffer = GfxGetFragmentStageBinding(&g_sky_atmosphere_pipeline, "frame_info_buffer");
+        auto fragment_transmittance_LUT = GfxGetFragmentStageBinding(&g_sky_atmosphere_pipeline, "transmittance_LUT");
+        auto fragment_color_LUT = GfxGetFragmentStageBinding(&g_sky_atmosphere_pipeline, "color_LUT");
+
+        GfxSetBuffer(&pass, fragment_frame_info_buffer, FrameDataBuffer(), ctx->frame_info_offset, sizeof(Std140FrameInfo));
+        GfxSetTexture(&pass, fragment_transmittance_LUT, &g_sky.transmittance_LUT);
+        GfxSetSamplerState(&pass, fragment_transmittance_LUT, &g_sky_LUT_sampler);
+        GfxSetTexture(&pass, fragment_color_LUT, &g_sky.color_LUT);
+        GfxSetSamplerState(&pass, fragment_color_LUT, &g_sky_color_LUT_sampler);
+
+        GfxDrawPrimitives(&pass, 6, 1);
+    }
+    GfxEndRenderPass(&pass);
+}
