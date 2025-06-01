@@ -274,7 +274,7 @@ void RenderGraphics(World *world)
         .window_pixel_size={(float)window_w, (float)window_h},
         .window_scale_factor=1,
         .sun_direction=world->sun_direction,
-        .sun_color={1,1,1,2},
+        .sun_color={1,1,1,1},
         .camera={
             .fov_in_degrees=world->camera.fov_in_degrees,
             .z_near_dist=world->camera.z_near_dist,
