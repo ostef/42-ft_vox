@@ -751,3 +751,13 @@ float SampleSpline(Spline *spline, float t)
 
     return HermiteCubic(p0, p1, InverseLerp(p0.x, p1.x, t));
 }
+
+Vec3f SphericalToCartesian(float azimuth, float polar)
+{
+    float cosa = cos(azimuth);
+    float sina = sin(azimuth);
+    float cosp = cos(polar);
+    float sinp = sin(polar);
+
+    return {sina * cosp, sinp, cosa * cosp};
+}

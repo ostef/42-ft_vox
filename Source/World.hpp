@@ -52,7 +52,8 @@ struct World
 {
     u32 seed;
 
-    Vec3f sun_direction = {1,0,0};
+    float sun_polar = 0;
+    float sun_azimuth = 0;
     Camera camera {};
     HashMap<ChunkKey, Chunk *> chunks_by_position = {};
     Array<Chunk *> all_chunks = {};

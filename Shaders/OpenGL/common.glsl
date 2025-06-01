@@ -68,6 +68,8 @@ struct FrameInfo
 {
     float2 window_pixel_size;
     float window_scale_factor;
+    float sun_azimuth;
+    float sun_polar;
     float3 sun_direction;
     float4 sun_color;
     Camera camera;

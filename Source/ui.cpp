@@ -804,6 +804,8 @@ static void ShowTerrainEditorUI(World *world)
 static void ShowGraphicsEditorUI(World *world)
 {
     UIIntEdit("render distance", &g_settings.render_distance, 8, 32);
+    UIFloatEdit("sun azimuth", &world->sun_azimuth, -Pi, Pi, 0.1);
+    UIFloatEdit("sun polar", &world->sun_polar, -Pi * 0.5, Pi * 0.5, 0.1);
     UIText("");
 
     UIText("== Debug ==");

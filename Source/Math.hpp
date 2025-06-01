@@ -359,3 +359,5 @@ int AddPoint(Spline *spline, float x, float y, float derivative);
 int AddPoint(Spline *spline, SplinePoint point);
 void RemovePoint(Spline *spline, int index);
 float SampleSpline(Spline *spline, float t);
+
+Vec3f SphericalToCartesian(float azimuth, float polar);

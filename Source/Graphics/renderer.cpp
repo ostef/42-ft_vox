@@ -261,11 +261,14 @@ void RenderGraphics(World *world)
     }
     GfxEndCopyPass(&upload_pass);
 
+    Vec3f sun_direction = -SphericalToCartesian(world->sun_azimuth, world->sun_polar);
     ctx.frame_info = Alloc<Std140FrameInfo>(FrameDataAllocator());
     *ctx.frame_info = {
         .window_pixel_size={(float)window_w, (float)window_h},
         .window_scale_factor=1,
-        .sun_direction=world->sun_direction,
+        .sun_azimuth=world->sun_azimuth,
+        .sun_polar=world->sun_polar,
+        .sun_direction=sun_direction,
         .sun_color={1,1,1,1},
         .camera={
             .fov_in_degrees=world->camera.fov_in_degrees,
@@ -289,10 +292,10 @@ void RenderGraphics(World *world)
             .normal_bias=g_shadow_map_normal_bias,
             .filter_radius=g_shadow_map_filter_radius,
             .cascade_matrices={
-                Transposed(GetShadowMapCascadeMatrix(world->sun_direction, world->camera.transform, 0)),
-                Transposed(GetShadowMapCascadeMatrix(world->sun_direction, world->camera.transform, 1)),
-                Transposed(GetShadowMapCascadeMatrix(world->sun_direction, world->camera.transform, 2)),
-                Transposed(GetShadowMapCascadeMatrix(world->sun_direction, world->camera.transform, 3)),
+                Transposed(GetShadowMapCascadeMatrix(sun_direction, world->camera.transform, 0)),
+                Transposed(GetShadowMapCascadeMatrix(sun_direction, world->camera.transform, 1)),
+                Transposed(GetShadowMapCascadeMatrix(sun_direction, world->camera.transform, 2)),
+                Transposed(GetShadowMapCascadeMatrix(sun_direction, world->camera.transform, 3)),
             },
             .cascade_sizes={
                 {g_shadow_map_cascade_sizes[0],0,0,0},
@@ -325,6 +328,8 @@ void RenderGraphics(World *world)
 
     ShadowMapPass(&ctx);
 
+    RenderSkyLUTs(&ctx);
+
     {
         GfxRenderPassDesc pass_desc{};
         GfxSetColorAttachment(&pass_desc, 0, &g_main_color_texture);
@@ -332,7 +337,7 @@ void RenderGraphics(World *world)
         GfxClearColor(&pass_desc, 0, {0.106, 0.478, 0.82,1});
         GfxClearDepth(&pass_desc, 1);
 
-        auto pass = GfxBeginRenderPass("Chunk", ctx.cmd_buffer, pass_desc);
+        auto pass = GfxBeginRenderPass("Chunks", ctx.cmd_buffer, pass_desc);
         {
             GfxSetViewport(&pass, {.width=(float)window_w, .height=(float)window_h});
             GfxSetPipelineState(&pass, &g_chunk_pipeline);
@@ -342,6 +347,8 @@ void RenderGraphics(World *world)
             auto fragment_block_atlas = GfxGetFragmentStageBinding(&g_chunk_pipeline, "block_atlas");
             auto fragment_shadow_map = GfxGetFragmentStageBinding(&g_chunk_pipeline, "shadow_map");
             auto fragment_shadow_map_noise = GfxGetFragmentStageBinding(&g_chunk_pipeline, "shadow_map_noise");
+            auto fragment_sky_transmittance_LUT = GfxGetFragmentStageBinding(&g_chunk_pipeline, "sky_transmittance_LUT");
+            auto fragment_sky_color_LUT = GfxGetFragmentStageBinding(&g_chunk_pipeline, "sky_color_LUT");
 
             GfxSetBuffer(&pass, vertex_frame_info, FrameDataBuffer(), ctx.frame_info_offset, sizeof(Std140FrameInfo));
             GfxSetBuffer(&pass, fragment_frame_info, FrameDataBuffer(), ctx.frame_info_offset, sizeof(Std140FrameInfo));
@@ -358,6 +365,12 @@ void RenderGraphics(World *world)
 
             GfxSetTexture(&pass, fragment_shadow_map_noise, &g_shadow_map_noise_texture);
             GfxSetSamplerState(&pass, fragment_shadow_map_noise, &g_shadow_map_noise_sampler);
+
+            GfxSetTexture(&pass, fragment_sky_transmittance_LUT, &g_sky.transmittance_LUT);
+            GfxSetSamplerState(&pass, fragment_sky_transmittance_LUT, &g_sky_LUT_sampler);
+
+            GfxSetTexture(&pass, fragment_sky_color_LUT, &g_sky.color_LUT);
+            GfxSetSamplerState(&pass, fragment_sky_color_LUT, &g_sky_color_LUT_sampler);
 
             for (int type = 0; type < ChunkMeshType_Count; type += 1)
             {

@@ -74,6 +74,7 @@ void main()
     polar_angle -= horizon_angle;
 
     float3 ray_direction = SphericalToCartesian(azimuth_angle, polar_angle);
+    float3 sun_direction = SphericalToCartesian(0, frame_info.sun_polar);
 
     float atmosphere_dist = RayIntersectsSphere(view_position, ray_direction, frame_info.sky.atmosphere_radius);
     float ground_dist = RayIntersectsSphere(view_position, ray_direction, frame_info.sky.ground_radius);
@@ -81,7 +82,7 @@ void main()
     float3 lum = RaymarchScattering(
         view_position,
         ray_direction,
-        -frame_info.sun_direction,
+        sun_direction,
         t_max,
         float(frame_info.sky.num_multi_scatter_steps)
     );

@@ -297,6 +297,8 @@ struct SkyAtmosphere
 };
 
 extern SkyAtmosphere g_sky;
+extern GfxSamplerState g_sky_LUT_sampler;
+extern GfxSamplerState g_sky_color_LUT_sampler;
 
 void RenderSkyLUTs(FrameRenderContext *ctx);
 void SkyAtmospherePass(FrameRenderContext *ctx);
@@ -362,7 +364,9 @@ struct Std140FrameInfo
 {
     Vec2f window_pixel_size;
     float window_scale_factor;
-    u32 _padding0 = 0;
+    float sun_azimuth;
+    float sun_polar;
+    u32 _padding0[3] = {0};
     Vec3f sun_direction;
     u32 _padding1 = 0;
     Vec4f sun_color;

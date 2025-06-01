@@ -182,7 +182,8 @@ void RenderSkyLUTs(FrameRenderContext *ctx)
 
 void SkyAtmospherePass(FrameRenderContext *ctx)
 {
-    RenderSkyLUTs(ctx);
+    if (IsNull(&g_sky_atmosphere_pipeline))
+        InitSkyPipelines();
 
     int window_w, window_h;
     SDL_GetWindowSizeInPixels(g_window, &window_w, &window_h);
