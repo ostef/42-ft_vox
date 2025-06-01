@@ -156,10 +156,16 @@ String GetParentDirectory(String filename)
     return filename;
 }
 
-String GetAbsoluteFilename(String filename)
+String GetAbsoluteFilename(String filename, Allocator allocator)
 {
-    Panic("@Todo");
-    return filename;
+    char *cfilename = CloneToCString(filename, temp);
+
+    char buffer[PATH_MAX];
+    char *result = realpath(cfilename, buffer);
+    if (!result)
+        return "";
+
+    return result;
 }
 
 bool FileExists(String filename)

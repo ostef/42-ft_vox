@@ -219,7 +219,7 @@ struct Result
 // File stuff
 
 String GetParentDirectory(String filename);
-String GetAbsoluteFilename(String filename);
+String GetAbsoluteFilename(String filename, Allocator allocator);
 
 bool FileExists(String filename);
 Result<String> ReadEntireFile(String filename);
