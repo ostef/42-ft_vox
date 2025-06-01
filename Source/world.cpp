@@ -147,7 +147,6 @@ void InitWorld(World *world, u32 seed)
 
     world->seed = seed;
 
-    world->sun_direction = Normalized(Vec3f{1, -1, 1});
     world->camera.position.y = Water_Level + 5;
 
     world->chunks_by_position.allocator = heap;
